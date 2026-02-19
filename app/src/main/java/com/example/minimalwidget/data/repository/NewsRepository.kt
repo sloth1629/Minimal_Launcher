@@ -1,7 +1,7 @@
 package com.example.minimalwidget.data.repository
 
-import android.net.Uri
 import android.util.Xml
+import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.xmlpull.v1.XmlPullParser
@@ -36,7 +36,7 @@ class GoogleRssNewsRepository : NewsRepository {
                 .joinToString(" OR ")
                 .ifBlank { "technology" }
 
-            val url = Uri.parse("https://news.google.com/rss/search")
+            val url = "https://news.google.com/rss/search".toUri()
                 .buildUpon()
                 .appendQueryParameter("q", query)
                 .appendQueryParameter("hl", "ko")

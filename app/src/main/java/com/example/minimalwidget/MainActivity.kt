@@ -1,7 +1,6 @@
 package com.example.minimalwidget
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -53,8 +52,10 @@ import com.example.minimalwidget.launcher.LauncherPrefsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.time.LocalTime
-import java.time.format.DateTimeFormatter
+import androidx.core.net.toUri
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -129,7 +130,7 @@ private fun MinimalLauncherApp(
                 }
                 runCatching { context.startActivity(smsIntent) }
                     .onFailure {
-                        val fallback = Intent(Intent.ACTION_VIEW, Uri.parse("sms:"))
+                        val fallback = Intent(Intent.ACTION_VIEW, "sms:".toUri())
                         context.startActivity(fallback)
                     }
             },
@@ -190,8 +191,8 @@ private fun HomeScreen(
     onSwipeUp: () -> Unit,
     onLongPress: () -> Unit
 ) {
-    var totalDx by remember { mutableStateOf(0f) }
-    var totalDy by remember { mutableStateOf(0f) }
+    var totalDx by remember { mutableFloatStateOf(0f) }
+    var totalDy by remember { mutableFloatStateOf(0f) }
 
     val backgroundColor = if (settings.textTone == "dark") Color(0xFF0B0B0B) else Color(0xFFF6F6F6)
     val textColor = if (settings.textTone == "dark") Color(0xFFF2F2F2) else Color(0xFF111111)
@@ -231,7 +232,7 @@ private fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
-                text = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")),
+                text = rememberCurrentTimeText(),
                 color = textColor,
                 fontSize = 40.sp,
                 fontWeight = FontWeight.Bold
@@ -257,6 +258,25 @@ private fun HomeScreen(
     }
 }
 
+
+@Composable
+private fun rememberCurrentTimeText(): String {
+    var currentTime by remember { mutableStateOf(formatCurrentTime()) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            val now = System.currentTimeMillis()
+            val delayMs = 60_000L - (now % 60_000L)
+            kotlinx.coroutines.delay(delayMs)
+            currentTime = formatCurrentTime()
+        }
+    }
+
+    return currentTime
+}
+
+private fun formatCurrentTime(): String =
+    SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
 @Composable
 private fun AppsScreen(
     apps: List<Pair<String, String>>,
