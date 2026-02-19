@@ -189,44 +189,36 @@ private fun MarketModeContent(fontSize: String, lines: List<MarketLine>) {
 
 private suspend fun fetchMarketQuotes(): List<MarketLine> = withContext(Dispatchers.IO) {
     return@withContext try {
-        val url = URL("https://query1.finance.yahoo.com/v7/finance/quote?symbols=%5EKS11,%5EIXIC,KRW=X")
-        val conn = (url.openConnection() as HttpURLConnection).apply {
-            requestMethod = "GET"
-            connectTimeout = 7000
-            readTimeout = 7000
-            setRequestProperty("User-Agent", "Mozilla/5.0")
-        }
+        fun fetchYahooChart(symbolEncoded: String, label: String): MarketLine {
+            val url = URL("https://query2.finance.yahoo.com/v8/finance/chart/$symbolEncoded?interval=1d&range=5d")
+            val conn = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 7000
+                readTimeout = 7000
+                setRequestProperty("User-Agent", "Mozilla/5.0")
+            }
+            val body = conn.inputStream.bufferedReader().use { it.readText() }
+            conn.disconnect()
 
-        val body = if (conn.responseCode in 200..299) {
-            conn.inputStream.bufferedReader().use { it.readText() }
-        } else {
-            conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
-        }
-        conn.disconnect()
+            val meta = JSONObject(body)
+                .getJSONObject("chart")
+                .getJSONArray("result")
+                .getJSONObject(0)
+                .getJSONObject("meta")
 
-        val results = JSONObject(body)
-            .getJSONObject("quoteResponse")
-            .getJSONArray("result")
+            val price = meta.optDouble("regularMarketPrice", Double.NaN)
+            val prev = meta.optDouble("chartPreviousClose", Double.NaN)
+            val pct = if (price.isNaN() || prev.isNaN() || prev == 0.0) Double.NaN else ((price - prev) / prev) * 100.0
 
-        val bySymbol = mutableMapOf<String, JSONObject>()
-        for (i in 0 until results.length()) {
-            val item = results.getJSONObject(i)
-            bySymbol[item.optString("symbol")] = item
-        }
-
-        fun line(label: String, symbol: String): MarketLine {
-            val obj = bySymbol[symbol] ?: return MarketLine(label, "-", "0.00%")
-            val price = obj.optDouble("regularMarketPrice", Double.NaN)
-            val pct = obj.optDouble("regularMarketChangePercent", Double.NaN)
             val priceStr = if (price.isNaN()) "-" else String.format("%,.2f", price)
             val pctStr = if (pct.isNaN()) "0.00%" else String.format("%+.2f%%", pct)
             return MarketLine(label, priceStr, pctStr)
         }
 
         listOf(
-            line("KOSPI", "^KS11"),
-            line("NASDAQ", "^IXIC"),
-            line("USDKRW", "KRW=X")
+            fetchYahooChart("%5EKS11", "KOSPI"),
+            fetchYahooChart("%5EIXIC", "NASDAQ"),
+            fetchYahooChart("KRW=X", "USDKRW")
         )
     } catch (_: Exception) {
         listOf(

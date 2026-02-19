@@ -323,45 +323,36 @@ private fun HomeScreen(
 
 private suspend fun fetchMarketQuotes(): List<MarketQuote> = withContext(Dispatchers.IO) {
     return@withContext try {
-        val url = URL("https://query1.finance.yahoo.com/v7/finance/quote?symbols=%5EKS11,%5EIXIC,KRW=X")
-        val conn = (url.openConnection() as HttpURLConnection).apply {
-            requestMethod = "GET"
-            connectTimeout = 7000
-            readTimeout = 7000
-            setRequestProperty("User-Agent", "Mozilla/5.0")
-        }
+        fun fetchYahooChart(symbolEncoded: String, label: String): MarketQuote {
+            val url = URL("https://query2.finance.yahoo.com/v8/finance/chart/$symbolEncoded?interval=1d&range=5d")
+            val conn = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 7000
+                readTimeout = 7000
+                setRequestProperty("User-Agent", "Mozilla/5.0")
+            }
+            val body = conn.inputStream.bufferedReader().use { it.readText() }
+            conn.disconnect()
 
-        val body = if (conn.responseCode in 200..299) {
-            conn.inputStream.bufferedReader().use { it.readText() }
-        } else {
-            conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
-        }
-        conn.disconnect()
+            val meta = JSONObject(body)
+                .getJSONObject("chart")
+                .getJSONArray("result")
+                .getJSONObject(0)
+                .getJSONObject("meta")
 
-        val results = JSONObject(body)
-            .getJSONObject("quoteResponse")
-            .getJSONArray("result")
+            val price = meta.optDouble("regularMarketPrice", Double.NaN)
+            val prev = meta.optDouble("chartPreviousClose", Double.NaN)
+            val pct = if (price.isNaN() || prev.isNaN() || prev == 0.0) Double.NaN else ((price - prev) / prev) * 100.0
 
-        val bySymbol = mutableMapOf<String, JSONObject>()
-        for (i in 0 until results.length()) {
-            val item = results.getJSONObject(i)
-            bySymbol[item.optString("symbol")] = item
-        }
-
-        fun formatLine(label: String, symbol: String): MarketQuote {
-            val obj = bySymbol[symbol]
-            if (obj == null) return MarketQuote(label, "-", "0.00%")
-            val price = obj.optDouble("regularMarketPrice", Double.NaN)
-            val pct = obj.optDouble("regularMarketChangePercent", Double.NaN)
             val priceStr = if (price.isNaN()) "-" else String.format("%,.2f", price)
             val pctStr = if (pct.isNaN()) "0.00%" else String.format("%+.2f%%", pct)
             return MarketQuote(label, priceStr, pctStr)
         }
 
         listOf(
-            formatLine("KOSPI", "^KS11"),
-            formatLine("NASDAQ", "^IXIC"),
-            formatLine("USDKRW", "KRW=X")
+            fetchYahooChart("%5EKS11", "KOSPI"),
+            fetchYahooChart("%5EIXIC", "NASDAQ"),
+            fetchYahooChart("KRW=X", "USDKRW")
         )
     } catch (_: Exception) {
         listOf(
@@ -421,7 +412,25 @@ private fun AppsScreen(
             .padding(20.dp)
     ) {
         Text("Apps", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-        LazyColumn(modifier = Modifier.fillMaxSize().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 12.dp)
+                .pointerInput(Unit) {
+                    detectDragGestures(
+                        onDrag = { _, dragAmount ->
+                            totalDx += dragAmount.x
+                            totalDy += dragAmount.y
+                        },
+                        onDragEnd = {
+                            if (kotlin.math.abs(totalDy) > kotlin.math.abs(totalDx) && totalDy > 90f) onBackHome()
+                            totalDx = 0f
+                            totalDy = 0f
+                        }
+                    )
+                },
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             items(visibleApps) { (pkg, originalName) ->
                 val label = aliases[pkg].takeUnless { it.isNullOrBlank() } ?: originalName
                 Text(
