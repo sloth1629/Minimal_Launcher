@@ -176,7 +176,10 @@ private fun MarketModeContent(fontSize: String) {
             Text(
                 text = line.changePercent,
                 style = TextStyle(
-                    color = ColorProvider(changeColor(line.changePercent)),
+                    color = ColorProvider(
+                        day = changeColor(line.changePercent),
+                        night = changeColor(line.changePercent)
+                    ),
                     fontSize = bodySize(fontSize),
                     fontWeight = FontWeight.Medium
                 )
