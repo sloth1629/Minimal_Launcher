@@ -141,7 +141,7 @@ private fun MinimalModeContent(
         style = TextStyle(color = textColor, fontSize = bodySize(fontSize), fontWeight = FontWeight.Medium)
     )
     Text(
-        text = "오늘 할 일: $normalizedTodo",
+        text = "Today: $normalizedTodo",
         style = TextStyle(color = textColor, fontSize = bodySize(fontSize), fontWeight = FontWeight.Medium)
     )
 }

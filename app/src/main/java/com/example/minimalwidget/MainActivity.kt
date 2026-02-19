@@ -315,7 +315,7 @@ private fun HomeScreen(
                     color = textColor,
                     fontSize = bodyFontSize
                 )
-                Text("오늘 할 일: ${settings.dailyTodo}", color = textColor, fontSize = bodyFontSize)
+                Text("Today: ${settings.dailyTodo}", color = textColor, fontSize = bodyFontSize)
             }
         }
     }
