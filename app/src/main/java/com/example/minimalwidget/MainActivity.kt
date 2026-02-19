@@ -328,9 +328,14 @@ private suspend fun fetchMarketQuotes(): List<MarketQuote> = withContext(Dispatc
             requestMethod = "GET"
             connectTimeout = 7000
             readTimeout = 7000
+            setRequestProperty("User-Agent", "Mozilla/5.0")
         }
 
-        val body = conn.inputStream.bufferedReader().use { it.readText() }
+        val body = if (conn.responseCode in 200..299) {
+            conn.inputStream.bufferedReader().use { it.readText() }
+        } else {
+            conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+        }
         conn.disconnect()
 
         val results = JSONObject(body)

@@ -34,7 +34,12 @@ import com.example.minimalwidget.data.model.WeatherInfo
 import com.example.minimalwidget.data.repository.Repositories
 import com.example.minimalwidget.settings.WidgetSettingsRepository
 import com.example.minimalwidget.widget.NewsResetWorker
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.concurrent.TimeUnit
 
 class MyWidget : GlanceAppWidget() {
@@ -51,6 +56,7 @@ class MyWidget : GlanceAppWidget() {
         val settings = WidgetSettingsRepository(context).settingsFlow.first()
         val weather = Repositories.weather.getCurrentWeather(settings.region)
         val todo = settings.dailyTodo.ifBlank { Repositories.todo.getDailyTodo() }
+        val markets = fetchMarketQuotes()
 
         provideContent {
             val prefs = currentState<Preferences>()
@@ -63,7 +69,7 @@ class MyWidget : GlanceAppWidget() {
                     .clickable(actionRunCallback<ToggleWidgetModeAction>())
             ) {
                 if (isNewsMode) {
-                    MarketModeContent(settings.fontSize)
+                    MarketModeContent(settings.fontSize, markets)
                 } else {
                     MinimalModeContent(weather, todo, settings.fontSize)
                 }
@@ -152,15 +158,8 @@ data class MarketLine(
     val changePercent: String
 )
 
-private fun marketLines(): List<MarketLine> = listOf(
-    MarketLine("KOSPI", "2,845.10", "+0.73%"),
-    MarketLine("NASDAQ", "18,920.44", "-0.41%"),
-    MarketLine("USDKRW", "1,372.50", "+0.12%")
-)
-
 @androidx.compose.runtime.Composable
-private fun MarketModeContent(fontSize: String) {
-    val lines = marketLines()
+private fun MarketModeContent(fontSize: String, lines: List<MarketLine>) {
     val base = ColorProvider(day = Color(0xFFFFFFFF), night = Color(0xFFFFFFFF))
 
     lines.forEach { line ->
@@ -185,6 +184,56 @@ private fun MarketModeContent(fontSize: String) {
                 )
             )
         }
+    }
+}
+
+private suspend fun fetchMarketQuotes(): List<MarketLine> = withContext(Dispatchers.IO) {
+    return@withContext try {
+        val url = URL("https://query1.finance.yahoo.com/v7/finance/quote?symbols=%5EKS11,%5EIXIC,KRW=X")
+        val conn = (url.openConnection() as HttpURLConnection).apply {
+            requestMethod = "GET"
+            connectTimeout = 7000
+            readTimeout = 7000
+            setRequestProperty("User-Agent", "Mozilla/5.0")
+        }
+
+        val body = if (conn.responseCode in 200..299) {
+            conn.inputStream.bufferedReader().use { it.readText() }
+        } else {
+            conn.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+        }
+        conn.disconnect()
+
+        val results = JSONObject(body)
+            .getJSONObject("quoteResponse")
+            .getJSONArray("result")
+
+        val bySymbol = mutableMapOf<String, JSONObject>()
+        for (i in 0 until results.length()) {
+            val item = results.getJSONObject(i)
+            bySymbol[item.optString("symbol")] = item
+        }
+
+        fun line(label: String, symbol: String): MarketLine {
+            val obj = bySymbol[symbol] ?: return MarketLine(label, "-", "0.00%")
+            val price = obj.optDouble("regularMarketPrice", Double.NaN)
+            val pct = obj.optDouble("regularMarketChangePercent", Double.NaN)
+            val priceStr = if (price.isNaN()) "-" else String.format("%,.2f", price)
+            val pctStr = if (pct.isNaN()) "0.00%" else String.format("%+.2f%%", pct)
+            return MarketLine(label, priceStr, pctStr)
+        }
+
+        listOf(
+            line("KOSPI", "^KS11"),
+            line("NASDAQ", "^IXIC"),
+            line("USDKRW", "KRW=X")
+        )
+    } catch (_: Exception) {
+        listOf(
+            MarketLine("KOSPI", "-", "0.00%"),
+            MarketLine("NASDAQ", "-", "0.00%"),
+            MarketLine("USDKRW", "-", "0.00%")
+        )
     }
 }
 
