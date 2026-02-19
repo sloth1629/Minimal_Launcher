@@ -105,6 +105,9 @@ private fun MinimalLauncherApp(
     var currentScreen by remember { mutableStateOf(LauncherScreen.Home) }
     var weather by remember { mutableStateOf(WeatherInfo(temperatureCelsius = 0, airQualitySummary = "날씨 불러오는 중")) }
     var weatherLoading by remember { mutableStateOf(true) }
+    var newsItems by remember { mutableStateOf<List<String>>(emptyList()) }
+    var newsLoading by remember { mutableStateOf(true) }
+    var isNewsMode by remember { mutableStateOf(false) }
 
     var apps by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
 
@@ -127,11 +130,21 @@ private fun MinimalLauncherApp(
         weatherLoading = false
     }
 
+    LaunchedEffect(settings.interests) {
+        newsLoading = true
+        newsItems = Repositories.news.getNewsSummaries(limit = 3, interests = settings.interests)
+        newsLoading = false
+    }
+
     when (currentScreen) {
         LauncherScreen.Home -> HomeScreen(
             settings = settings,
             weather = weather,
             weatherLoading = weatherLoading,
+            newsItems = newsItems,
+            newsLoading = newsLoading,
+            isNewsMode = isNewsMode,
+            onToggleNewsMode = { isNewsMode = !isNewsMode },
             onSwipeLeft = {
                 val dialIntent = Intent(Intent.ACTION_DIAL)
                 context.startActivity(dialIntent)
@@ -199,6 +212,10 @@ private fun HomeScreen(
     settings: WidgetSettings,
     weather: WeatherInfo,
     weatherLoading: Boolean,
+    newsItems: List<String>,
+    newsLoading: Boolean,
+    isNewsMode: Boolean,
+    onToggleNewsMode: () -> Unit,
     onSwipeLeft: () -> Unit,
     onSwipeRight: () -> Unit,
     onSwipeUp: () -> Unit,
@@ -245,7 +262,7 @@ private fun HomeScreen(
                 )
             }
             .combinedClickable(
-                onClick = {},
+                onClick = onToggleNewsMode,
                 onLongClick = onLongPress
             )
             .padding(horizontal = 20.dp)
@@ -262,25 +279,50 @@ private fun HomeScreen(
                 .padding(top = topPadding),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = if (weatherLoading) "--°C" else "${weather.temperatureCelsius}°C",
-                color = textColor,
-                fontSize = tempFontSize,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = (-0.8).sp
-            )
-            Text(
-                text = if (weatherLoading) "날씨 불러오는 중..." else weather.airQualitySummary,
-                color = textColor,
-                fontSize = bodyFontSize,
-                letterSpacing = (-0.2).sp
-            )
-            Text(
-                text = "오늘 할 일: ${settings.dailyTodo}",
-                color = textColor,
-                fontSize = bodyFontSize,
-                letterSpacing = (-0.2).sp
-            )
+            if (isNewsMode) {
+                Text(
+                    text = "뉴스",
+                    color = textColor,
+                    fontSize = bodyFontSize,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.2).sp
+                )
+
+                val lines = if (newsLoading) {
+                    listOf("뉴스 불러오는 중...")
+                } else {
+                    newsItems.take(3).ifEmpty { listOf("뉴스가 없어요") }
+                }
+
+                lines.forEach { line ->
+                    Text(
+                        text = "• $line",
+                        color = textColor,
+                        fontSize = bodyFontSize,
+                        letterSpacing = (-0.2).sp
+                    )
+                }
+            } else {
+                Text(
+                    text = if (weatherLoading) "--°C" else "${weather.temperatureCelsius}°C",
+                    color = textColor,
+                    fontSize = tempFontSize,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.8).sp
+                )
+                Text(
+                    text = if (weatherLoading) "날씨 불러오는 중..." else weather.airQualitySummary,
+                    color = textColor,
+                    fontSize = bodyFontSize,
+                    letterSpacing = (-0.2).sp
+                )
+                Text(
+                    text = "오늘 할 일: ${settings.dailyTodo}",
+                    color = textColor,
+                    fontSize = bodyFontSize,
+                    letterSpacing = (-0.2).sp
+                )
+            }
         }
     }
 }
@@ -321,9 +363,8 @@ private fun AppsScreen(
             .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Row(modifier = Modifier.fillMaxWidth()) {
             Text("Apps", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            MonoButton(label = "홈", onClick = onBackHome)
         }
 
         if (apps.isEmpty()) {
