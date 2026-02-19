@@ -9,11 +9,13 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,8 +25,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
-import androidx.compose.material3.Divider
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -38,6 +41,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -205,13 +209,8 @@ private fun HomeScreen(
 
     val backgroundColor = if (settings.textTone == "dark") Color.Black else Color(0xFFF6F6F6)
     val textColor = if (settings.textTone == "dark") Color(0xFFF2F2F2) else Color(0xFF111111)
-    val topPadding = when (settings.homeTopPadding) {
-        "high" -> 18.dp
-        "low" -> 64.dp
-        else -> 36.dp
-    }
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(backgroundColor)
@@ -239,14 +238,24 @@ private fun HomeScreen(
                 onClick = {},
                 onLongClick = onLongPress
             )
-            .padding(horizontal = 20.dp, vertical = topPadding)
+            .padding(horizontal = 20.dp)
     ) {
+        val topPadding = maxHeight / 7
+
         Column(
-            modifier = Modifier.align(Alignment.TopStart),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(top = topPadding),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = if (weatherLoading) "날씨 불러오는 중..." else "${weather.temperatureCelsius}°C · ${weather.airQualitySummary}",
+                text = if (weatherLoading) "--°C" else "${weather.temperatureCelsius}°C",
+                color = textColor,
+                fontSize = 52.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = if (weatherLoading) "날씨 불러오는 중..." else weather.airQualitySummary,
                 color = textColor,
                 fontSize = 16.sp
             )
@@ -256,8 +265,6 @@ private fun HomeScreen(
                 fontSize = 16.sp
             )
         }
-
-        // 안내 문구 제거
     }
 }
 
@@ -278,13 +285,28 @@ private fun AppsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0E0E0E))
+            .background(Color.Black)
+            .pointerInput(Unit) {
+                detectDragGestures(
+                    onDrag = { _, dragAmount ->
+                        totalDx += dragAmount.x
+                        totalDy += dragAmount.y
+                    },
+                    onDragEnd = {
+                        if (kotlin.math.abs(totalDy) > kotlin.math.abs(totalDx) && totalDy > 90f) {
+                            onBackHome()
+                        }
+                        totalDx = 0f
+                        totalDy = 0f
+                    }
+                )
+            }
             .padding(18.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("Apps", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            Button(onClick = onBackHome) { Text("홈") }
+            MonoButton(label = "홈", onClick = onBackHome)
         }
 
         if (apps.isEmpty()) {
@@ -317,12 +339,26 @@ private fun AppsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onLaunchApp(pkg) }
-                            .padding(vertical = 6.dp)
+                            .padding(vertical = 8.dp)
                     )
-                    Divider(color = Color.White.copy(alpha = 0.12f))
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MonoButton(label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier,
+        border = BorderStroke(1.dp, Color.White),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = Color.Transparent,
+            contentColor = Color.White
+        )
+    ) {
+        Text(label)
     }
 }
 
@@ -355,7 +391,7 @@ private fun SettingsScreen(
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text("런처 설정", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            Button(onClick = onBackHome) { Text("취소") }
+            MonoButton(label = "취소", onClick = onBackHome)
         }
 
         OutlinedTextField(
@@ -381,31 +417,30 @@ private fun SettingsScreen(
         )
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { tone = "light" }) { Text("라이트") }
-            Button(onClick = { tone = "dark" }) { Text("다크") }
+            MonoButton(label = "라이트") { tone = "light" }
+            MonoButton(label = "다크") { tone = "dark" }
             Text("현재: $tone", color = Color.White, modifier = Modifier.align(Alignment.CenterVertically))
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { fontSize = "small" }) { Text("작게") }
-            Button(onClick = { fontSize = "medium" }) { Text("보통") }
-            Button(onClick = { fontSize = "large" }) { Text("크게") }
+            MonoButton(label = "작게") { fontSize = "small" }
+            MonoButton(label = "보통") { fontSize = "medium" }
+            MonoButton(label = "크게") { fontSize = "large" }
             Text("현재: $fontSize", color = Color.White, modifier = Modifier.align(Alignment.CenterVertically))
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { homeTopPadding = "high" }) { Text("위로") }
-            Button(onClick = { homeTopPadding = "mid" }) { Text("중간") }
-            Button(onClick = { homeTopPadding = "low" }) { Text("아래") }
+            MonoButton(label = "위로") { homeTopPadding = "high" }
+            MonoButton(label = "중간") { homeTopPadding = "mid" }
+            MonoButton(label = "아래") { homeTopPadding = "low" }
             Text("위치: $homeTopPadding", color = Color.White, modifier = Modifier.align(Alignment.CenterVertically))
         }
 
-        Button(
-            onClick = { onSaveSettings(region, interests, todo, tone, fontSize, homeTopPadding) },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("저장")
-        }
+        MonoButton(
+            label = "저장",
+            modifier = Modifier.fillMaxWidth(),
+            onClick = { onSaveSettings(region, interests, todo, tone, fontSize, homeTopPadding) }
+        )
 
         Text("앱 이름/숨김 설정", color = Color.White, fontWeight = FontWeight.SemiBold)
 
@@ -431,11 +466,11 @@ private fun SettingsScreen(
                     )
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { onAliasChanged(pkg, aliasDrafts[pkg] ?: "") }) { Text("이름 저장") }
+                        MonoButton(label = "이름 저장") { onAliasChanged(pkg, aliasDrafts[pkg] ?: "") }
                         if (hiddenPackages.contains(pkg)) {
-                            Button(onClick = { onToggleHidden(pkg, false) }) { Text("숨김 해제") }
+                            MonoButton(label = "숨김 해제") { onToggleHidden(pkg, false) }
                         } else {
-                            Button(onClick = { onToggleHidden(pkg, true) }) { Text("숨기기") }
+                            MonoButton(label = "숨기기") { onToggleHidden(pkg, true) }
                         }
                     }
                 }
