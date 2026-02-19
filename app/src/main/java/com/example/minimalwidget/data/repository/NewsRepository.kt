@@ -11,7 +11,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 interface NewsRepository {
-    suspend fun getNewsSummaries(limit: Int = 3, interests: String = "특이점이 온다 념글"): List<String>
+    suspend fun getNewsSummaries(limit: Int = 3, interests: String = "AI, IT"): List<String>
 }
 
 class MockNewsRepository : NewsRepository {

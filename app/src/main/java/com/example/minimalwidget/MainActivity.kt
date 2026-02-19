@@ -183,7 +183,7 @@ private fun MinimalLauncherApp(
             onSaveSettings = { region, interests, todo, tone, fontSize, homeTopPadding ->
                 scope.launch {
                     settingsRepository.updateRegion(region.ifBlank { "Seoul" })
-                    settingsRepository.updateInterests(interests.ifBlank { "technology" })
+                    settingsRepository.updateInterests(interests.ifBlank { "AI, IT" })
                     settingsRepository.updateDailyTodo(todo.ifBlank { "오늘 할 일을 입력해 주세요" })
                     settingsRepository.updateTextTone(tone)
                     settingsRepository.updateFontSize(fontSize)

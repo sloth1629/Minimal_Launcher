@@ -14,7 +14,7 @@ data class WidgetSettings(
     val textTone: String = "light",
     val fontSize: String = "medium",
     val region: String = "Daejeon",
-    val interests: String = "특이점이 온다 념글",
+    val interests: String = "AI, IT",
     val dailyTodo: String = "10 min walk",
     val homeTopPadding: String = "mid"
 )
@@ -63,7 +63,7 @@ fun Preferences.toWidgetSettings(): WidgetSettings {
         textTone = this[WidgetSettingKeys.TextTone] ?: "light",
         fontSize = this[WidgetSettingKeys.FontSize] ?: "medium",
         region = this[WidgetSettingKeys.Region] ?: "Daejeon",
-        interests = this[WidgetSettingKeys.Interests] ?: "특이점이 온다 념글",
+        interests = this[WidgetSettingKeys.Interests] ?: "AI, IT",
         dailyTodo = this[WidgetSettingKeys.DailyTodo] ?: "10 min walk",
         homeTopPadding = this[WidgetSettingKeys.HomeTopPadding] ?: "mid"
     )
