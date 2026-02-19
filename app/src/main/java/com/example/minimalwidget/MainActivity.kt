@@ -4,17 +4,13 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -25,7 +21,8 @@ import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
+import androidx.compose.foundation.text.selection.LocalTextSelectionColors
+import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -38,13 +35,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -52,19 +47,20 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.foundation.text.selection.LocalTextSelectionColors
-import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.net.toUri
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.example.minimalwidget.data.model.WeatherInfo
 import com.example.minimalwidget.data.repository.Repositories
+import com.example.minimalwidget.launcher.LauncherPrefsRepository
 import com.example.minimalwidget.settings.WidgetSettings
 import com.example.minimalwidget.settings.WidgetSettingsRepository
-import com.example.minimalwidget.launcher.LauncherPrefsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import androidx.core.net.toUri
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -104,22 +100,18 @@ private fun MinimalLauncherApp(
     val scope = rememberCoroutineScope()
 
     var currentScreen by remember { mutableStateOf(LauncherScreen.Home) }
-    var weather by remember { mutableStateOf(WeatherInfo(temperatureCelsius = 0, airQualitySummary = "날씨 불러오는 중")) }
+    var weather by remember { mutableStateOf(WeatherInfo(temperatureCelsius = 0, airQualitySummary = "Loading weather...")) }
     var weatherLoading by remember { mutableStateOf(true) }
     var newsItems by remember { mutableStateOf<List<String>>(emptyList()) }
     var newsLoading by remember { mutableStateOf(true) }
     var isNewsMode by remember { mutableStateOf(false) }
 
-    val apps = remember {
-        mutableStateOf<List<Pair<String, String>>>(emptyList())
-    }
+    val apps = remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
 
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
             val pm = context.packageManager
-            val launchIntent = Intent(Intent.ACTION_MAIN, null).apply {
-                addCategory(Intent.CATEGORY_LAUNCHER)
-            }
+            val launchIntent = Intent(Intent.ACTION_MAIN, null).apply { addCategory(Intent.CATEGORY_LAUNCHER) }
             val loaded = pm.queryIntentActivities(launchIntent, 0)
                 .map {
                     val pkg = it.activityInfo.packageName
@@ -153,12 +145,8 @@ private fun MinimalLauncherApp(
             newsLoading = newsLoading,
             isNewsMode = isNewsMode,
             onToggleNewsMode = { isNewsMode = !isNewsMode },
-            onSwipeLeft = {
-                launchSwipeAction(context, settings.swipeLeftAction)
-            },
-            onSwipeRight = {
-                launchSwipeAction(context, settings.swipeRightAction)
-            },
+            onSwipeLeft = { launchSwipeAction(context, settings.swipeLeftAction) },
+            onSwipeRight = { launchSwipeAction(context, settings.swipeRightAction) },
             onSwipeUp = { currentScreen = LauncherScreen.Apps },
             onLongPress = { currentScreen = LauncherScreen.Settings }
         )
@@ -169,8 +157,7 @@ private fun MinimalLauncherApp(
             hiddenPackages = prefs.hiddenPackages,
             onBackHome = { currentScreen = LauncherScreen.Home },
             onLaunchApp = { packageName ->
-                val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName)
-                if (launchIntent != null) context.startActivity(launchIntent)
+                context.packageManager.getLaunchIntentForPackage(packageName)?.let { context.startActivity(it) }
             }
         )
 
@@ -184,7 +171,7 @@ private fun MinimalLauncherApp(
                 scope.launch {
                     settingsRepository.updateRegion(region.ifBlank { "Seoul" })
                     settingsRepository.updateInterests(interests.ifBlank { "AI, IT" })
-                    settingsRepository.updateDailyTodo(todo.ifBlank { "오늘 할 일을 입력해 주세요" })
+                    settingsRepository.updateDailyTodo(todo.ifBlank { "10 min walk" })
                     settingsRepository.updateTextTone(tone)
                     settingsRepository.updateFontSize(fontSize)
                     settingsRepository.updateHomeTopPadding(homeTopPadding)
@@ -200,9 +187,7 @@ private fun MinimalLauncherApp(
                 }
             },
             onAliasChanged = { packageName, alias ->
-                scope.launch {
-                    launcherPrefsRepository.setAlias(packageName, alias)
-                }
+                scope.launch { launcherPrefsRepository.setAlias(packageName, alias) }
             }
         )
     }
@@ -238,11 +223,6 @@ private fun HomeScreen(
         "large" -> 18.sp
         else -> 16.sp
     }
-    val bodyLineHeight = when (settings.fontSize) {
-        "small" -> 15.sp
-        "large" -> 19.sp
-        else -> 17.sp
-    }
 
     BoxWithConstraints(
         modifier = Modifier
@@ -260,18 +240,15 @@ private fun HomeScreen(
                                 totalDx > 120f -> onSwipeRight()
                                 totalDx < -120f -> onSwipeLeft()
                             }
-                        } else {
-                            if (totalDy < -120f) onSwipeUp()
+                        } else if (totalDy < -120f) {
+                            onSwipeUp()
                         }
                         totalDx = 0f
                         totalDy = 0f
                     }
                 )
             }
-            .combinedClickable(
-                onClick = onToggleNewsMode,
-                onLongClick = onLongPress
-            )
+            .combinedClickable(onClick = onToggleNewsMode, onLongClick = onLongPress)
             .padding(horizontal = 20.dp)
     ) {
         val topPadding = when (settings.homeTopPadding) {
@@ -282,10 +259,8 @@ private fun HomeScreen(
         }
 
         Column(
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(top = topPadding),
-            verticalArrangement = Arrangement.spacedBy(1.dp)
+            modifier = Modifier.align(Alignment.TopStart).padding(top = topPadding),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             if (isNewsMode) {
                 val marketLines = listOf(
@@ -293,28 +268,17 @@ private fun HomeScreen(
                     Triple("NASDAQ", "18,920.44", "-0.41%"),
                     Triple("USDKRW", "1,372.50", "+0.12%")
                 )
-
                 marketLines.forEach { (label, value, change) ->
                     Row {
+                        Text("$label $value ", color = textColor, fontSize = bodyFontSize)
                         Text(
-                            text = "$label $value ",
-                            color = textColor,
-                            fontSize = bodyFontSize,
-                            fontWeight = FontWeight.Normal,
-                            letterSpacing = (-0.2).sp,
-                            lineHeight = bodyLineHeight
-                        )
-                        Text(
-                            text = change,
+                            change,
                             color = when {
                                 change.startsWith("+") -> Color(0xFFFF3B30)
                                 change.startsWith("-") -> Color(0xFF2F6BFF)
                                 else -> textColor
                             },
-                            fontSize = bodyFontSize,
-                            fontWeight = FontWeight.Normal,
-                            letterSpacing = (-0.2).sp,
-                            lineHeight = bodyLineHeight
+                            fontSize = bodyFontSize
                         )
                     }
                 }
@@ -323,57 +287,37 @@ private fun HomeScreen(
                     text = if (weatherLoading) "--°C" else "${weather.temperatureCelsius}°C",
                     color = textColor,
                     fontSize = tempFontSize,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.8).sp
+                    fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = if (weatherLoading) "날씨 불러오는 중..." else weather.airQualitySummary,
+                    text = if (weatherLoading) "Loading weather..." else weather.airQualitySummary,
                     color = textColor,
-                    fontSize = bodyFontSize,
-                    fontWeight = FontWeight.Normal,
-                    letterSpacing = (-0.2).sp,
-                    lineHeight = bodyLineHeight
+                    fontSize = bodyFontSize
                 )
-                Text(
-                    text = "오늘 할 일: ${settings.dailyTodo}",
-                    color = textColor,
-                    fontSize = bodyFontSize,
-                    fontWeight = FontWeight.Normal,
-                    letterSpacing = (-0.2).sp,
-                    lineHeight = bodyLineHeight
-                )
+                Text("Today: ${settings.dailyTodo}", color = textColor, fontSize = bodyFontSize)
             }
         }
     }
 }
 
 private fun launchSwipeAction(context: android.content.Context, action: String) {
-    val normalized = action.trim()
-    when (normalized.lowercase()) {
+    val normalized = action.trim().lowercase()
+    when (normalized) {
         "", "none", "off", "disabled" -> Unit
-        "dial", "phone", "call" -> {
-            runCatching { context.startActivity(Intent(Intent.ACTION_DIAL)) }
-        }
+        "dial", "phone", "call" -> runCatching { context.startActivity(Intent(Intent.ACTION_DIAL)) }
         "messaging", "sms", "message" -> {
-            val smsIntent = Intent(Intent.ACTION_MAIN).apply {
-                addCategory(Intent.CATEGORY_APP_MESSAGING)
-            }
+            val smsIntent = Intent(Intent.ACTION_MAIN).apply { addCategory(Intent.CATEGORY_APP_MESSAGING) }
             runCatching { context.startActivity(smsIntent) }
-                .onFailure {
-                    val fallback = Intent(Intent.ACTION_VIEW, "sms:".toUri())
-                    runCatching { context.startActivity(fallback) }
-                }
+                .onFailure { runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, "sms:".toUri())) } }
         }
         else -> {
-            val launchIntent = context.packageManager.getLaunchIntentForPackage(normalized)
-            if (launchIntent != null) {
-                runCatching { context.startActivity(launchIntent) }
+            context.packageManager.getLaunchIntentForPackage(action.trim())?.let {
+                runCatching { context.startActivity(it) }
             }
         }
     }
 }
 
-// clock removed
 @Composable
 private fun AppsScreen(
     apps: List<Pair<String, String>>,
@@ -397,9 +341,7 @@ private fun AppsScreen(
                         totalDy += dragAmount.y
                     },
                     onDragEnd = {
-                        if (kotlin.math.abs(totalDy) > kotlin.math.abs(totalDx) && totalDy > 90f) {
-                            onBackHome()
-                        }
+                        if (kotlin.math.abs(totalDy) > kotlin.math.abs(totalDx) && totalDy > 90f) onBackHome()
                         totalDx = 0f
                         totalDy = 0f
                     }
@@ -408,22 +350,14 @@ private fun AppsScreen(
             .padding(20.dp)
     ) {
         Text("Apps", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(top = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
+        LazyColumn(modifier = Modifier.fillMaxSize().padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(visibleApps) { (pkg, originalName) ->
                 val label = aliases[pkg].takeUnless { it.isNullOrBlank() } ?: originalName
                 Text(
                     text = label,
                     color = Color.White,
                     fontSize = 18.sp,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onLaunchApp(pkg) }
-                        .padding(vertical = 8.dp)
+                    modifier = Modifier.fillMaxWidth().clickable { onLaunchApp(pkg) }.padding(vertical = 8.dp)
                 )
             }
         }
@@ -436,10 +370,7 @@ private fun MonoButton(label: String, modifier: Modifier = Modifier, onClick: ()
         onClick = onClick,
         modifier = modifier,
         border = BorderStroke(1.dp, Color.White),
-        colors = ButtonDefaults.outlinedButtonColors(
-            containerColor = Color.Transparent,
-            contentColor = Color.White
-        )
+        colors = ButtonDefaults.outlinedButtonColors(containerColor = Color.Transparent, contentColor = Color.White)
     ) {
         Text(label)
     }
@@ -464,7 +395,7 @@ private fun SettingsScreen(
     var homeTopPadding by remember { mutableStateOf(settings.homeTopPadding) }
     var swipeLeftAction by remember { mutableStateOf(settings.swipeLeftAction) }
     var swipeRightAction by remember { mutableStateOf(settings.swipeRightAction) }
-    var settingsTab by remember { mutableStateOf("apps") } // apps | advanced
+    var settingsTab by remember { mutableStateOf("apps") }
 
     val aliasDrafts = remember { mutableStateMapOf<String, String>() }
     val settingsTextFieldColors = OutlinedTextFieldDefaults.colors(
@@ -482,54 +413,33 @@ private fun SettingsScreen(
     )
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF141414))
-            .padding(16.dp),
+        modifier = Modifier.fillMaxSize().background(Color(0xFF141414)).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("런처 설정", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            MonoButton(label = "취소", onClick = onBackHome)
+            Text("Launcher Settings", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            MonoButton(label = "Close", onClick = onBackHome)
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            MonoButton(
-                label = "앱 이름/숨김 설정",
-                modifier = Modifier.weight(1f),
-                onClick = { settingsTab = "apps" }
-            )
-            MonoButton(
-                label = "고급 설정",
-                modifier = Modifier.weight(1f),
-                onClick = { settingsTab = "advanced" }
-            )
+            MonoButton(label = "App name / hidden", modifier = Modifier.weight(1f), onClick = { settingsTab = "apps" })
+            MonoButton(label = "Advanced", modifier = Modifier.weight(1f), onClick = { settingsTab = "advanced" })
         }
 
         if (settingsTab == "apps") {
-            Text("앱 이름/숨김 설정", color = Color.White, fontWeight = FontWeight.SemiBold)
-
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            Text("App name / hidden", color = Color.White, fontWeight = FontWeight.SemiBold)
+            LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(apps) { (pkg, originalName) ->
                     val currentAlias = aliasDrafts[pkg] ?: aliases[pkg].orEmpty()
-
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color.White.copy(alpha = 0.03f))
-                            .padding(10.dp)
-                    ) {
+                    Column(modifier = Modifier.fillMaxWidth().background(Color.White.copy(alpha = 0.03f)).padding(10.dp)) {
                         Text(originalName, color = Color.White, fontWeight = FontWeight.Medium)
                         Text(pkg, color = Color.White.copy(alpha = 0.5f), fontSize = 11.sp)
 
-                        CompositionLocalProvider(LocalTextSelectionColors provides whiteSelectionColors) {
+                        androidx.compose.runtime.CompositionLocalProvider(LocalTextSelectionColors provides whiteSelectionColors) {
                             OutlinedTextField(
                                 value = currentAlias,
                                 onValueChange = { aliasDrafts[pkg] = it },
-                                label = { Text("런처 표시 이름") },
+                                label = { Text("Launcher name") },
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = settingsTextFieldColors
@@ -537,94 +447,47 @@ private fun SettingsScreen(
                         }
 
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            MonoButton(label = "이름 저장") { onAliasChanged(pkg, aliasDrafts[pkg] ?: "") }
+                            MonoButton(label = "Save name") { onAliasChanged(pkg, aliasDrafts[pkg] ?: "") }
                             if (hiddenPackages.contains(pkg)) {
-                                MonoButton(label = "숨김 해제") { onToggleHidden(pkg, false) }
+                                MonoButton(label = "Unhide") { onToggleHidden(pkg, false) }
                             } else {
-                                MonoButton(label = "숨기기") { onToggleHidden(pkg, true) }
+                                MonoButton(label = "Hide") { onToggleHidden(pkg, true) }
                             }
                         }
                     }
                 }
             }
         } else {
-            CompositionLocalProvider(LocalTextSelectionColors provides whiteSelectionColors) {
-                OutlinedTextField(
-                    value = region,
-                    onValueChange = { region = it },
-                    label = { Text("지역") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = settingsTextFieldColors
-                )
-                OutlinedTextField(
-                    value = interests,
-                    onValueChange = { interests = it },
-                    label = { Text("관심사") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = settingsTextFieldColors
-                )
-                OutlinedTextField(
-                    value = todo,
-                    onValueChange = { todo = it },
-                    label = { Text("오늘 할 일") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = settingsTextFieldColors
-                )
+            androidx.compose.runtime.CompositionLocalProvider(LocalTextSelectionColors provides whiteSelectionColors) {
+                OutlinedTextField(value = region, onValueChange = { region = it }, label = { Text("Region") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text), modifier = Modifier.fillMaxWidth(), colors = settingsTextFieldColors)
+                OutlinedTextField(value = interests, onValueChange = { interests = it }, label = { Text("Interests") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text), modifier = Modifier.fillMaxWidth(), colors = settingsTextFieldColors)
+                OutlinedTextField(value = todo, onValueChange = { todo = it }, label = { Text("Today todo") }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text), modifier = Modifier.fillMaxWidth(), colors = settingsTextFieldColors)
+                OutlinedTextField(value = swipeLeftAction, onValueChange = { swipeLeftAction = it }, label = { Text("Left swipe action (dial/messaging/none/package)") }, singleLine = true, modifier = Modifier.fillMaxWidth(), colors = settingsTextFieldColors)
+                OutlinedTextField(value = swipeRightAction, onValueChange = { swipeRightAction = it }, label = { Text("Right swipe action (dial/messaging/none/package)") }, singleLine = true, modifier = Modifier.fillMaxWidth(), colors = settingsTextFieldColors)
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MonoButton(label = "라이트") { tone = "light" }
-                MonoButton(label = "다크") { tone = "dark" }
-                Text("현재: $tone", color = Color.White, modifier = Modifier.align(Alignment.CenterVertically))
+                MonoButton(label = "Light") { tone = "light" }
+                MonoButton(label = "Dark") { tone = "dark" }
+                Text("Now: $tone", color = Color.White, modifier = Modifier.align(Alignment.CenterVertically))
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MonoButton(label = "작게") { fontSize = "small" }
-                MonoButton(label = "보통") { fontSize = "medium" }
-                MonoButton(label = "크게") { fontSize = "large" }
-                Text("현재: $fontSize", color = Color.White, modifier = Modifier.align(Alignment.CenterVertically))
+                MonoButton(label = "Small") { fontSize = "small" }
+                MonoButton(label = "Medium") { fontSize = "medium" }
+                MonoButton(label = "Large") { fontSize = "large" }
+                Text("Now: $fontSize", color = Color.White, modifier = Modifier.align(Alignment.CenterVertically))
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MonoButton(label = "위로") { homeTopPadding = "high" }
-                MonoButton(label = "중간") { homeTopPadding = "mid" }
-                MonoButton(label = "아래") { homeTopPadding = "low" }
-                Text("위치: $homeTopPadding", color = Color.White, modifier = Modifier.align(Alignment.CenterVertically))
-            }
-
-            CompositionLocalProvider(LocalTextSelectionColors provides whiteSelectionColors) {
-                OutlinedTextField(
-                    value = swipeLeftAction,
-                    onValueChange = { swipeLeftAction = it },
-                    label = { Text("왼쪽 스와이프 액션 (dial/messaging/none/패키지명)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = settingsTextFieldColors
-                )
-                OutlinedTextField(
-                    value = swipeRightAction,
-                    onValueChange = { swipeRightAction = it },
-                    label = { Text("오른쪽 스와이프 액션 (dial/messaging/none/패키지명)") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = settingsTextFieldColors
-                )
-            }
-
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MonoButton(label = "좌:전화") { swipeLeftAction = "dial" }
-                MonoButton(label = "우:문자") { swipeRightAction = "messaging" }
-                MonoButton(label = "양쪽 없음") {
-                    swipeLeftAction = "none"
-                    swipeRightAction = "none"
-                }
+                MonoButton(label = "Top") { homeTopPadding = "high" }
+                MonoButton(label = "Mid") { homeTopPadding = "mid" }
+                MonoButton(label = "Low") { homeTopPadding = "low" }
+                Text("Pos: $homeTopPadding", color = Color.White, modifier = Modifier.align(Alignment.CenterVertically))
             }
 
             MonoButton(
-                label = "저장",
+                label = "Save",
                 modifier = Modifier.fillMaxWidth(),
                 onClick = { onSaveSettings(region, interests, todo, tone, fontSize, homeTopPadding, swipeLeftAction, swipeRightAction) }
             )
