@@ -310,7 +310,7 @@ private fun HomeScreen(
                         text = "• $line",
                         color = textColor,
                         fontSize = bodyFontSize,
-                        fontWeight = FontWeight.Medium,
+                        fontWeight = FontWeight.Normal,
                         letterSpacing = (-0.2).sp,
                         lineHeight = bodyLineHeight
                     )
@@ -327,7 +327,7 @@ private fun HomeScreen(
                     text = if (weatherLoading) "날씨 불러오는 중..." else weather.airQualitySummary,
                     color = textColor,
                     fontSize = bodyFontSize,
-                    fontWeight = FontWeight.Medium,
+                    fontWeight = FontWeight.Normal,
                     letterSpacing = (-0.2).sp,
                     lineHeight = bodyLineHeight
                 )
@@ -335,7 +335,7 @@ private fun HomeScreen(
                     text = "오늘 할 일: ${settings.dailyTodo}",
                     color = textColor,
                     fontSize = bodyFontSize,
-                    fontWeight = FontWeight.Medium,
+                    fontWeight = FontWeight.Normal,
                     letterSpacing = (-0.2).sp,
                     lineHeight = bodyLineHeight
                 )
