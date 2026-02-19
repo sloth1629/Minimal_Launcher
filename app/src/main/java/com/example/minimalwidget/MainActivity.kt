@@ -150,18 +150,10 @@ private fun MinimalLauncherApp(
             isNewsMode = isNewsMode,
             onToggleNewsMode = { isNewsMode = !isNewsMode },
             onSwipeLeft = {
-                val dialIntent = Intent(Intent.ACTION_DIAL)
-                context.startActivity(dialIntent)
+                launchSwipeAction(context, settings.swipeLeftAction)
             },
             onSwipeRight = {
-                val smsIntent = Intent(Intent.ACTION_MAIN).apply {
-                    addCategory(Intent.CATEGORY_APP_MESSAGING)
-                }
-                runCatching { context.startActivity(smsIntent) }
-                    .onFailure {
-                        val fallback = Intent(Intent.ACTION_VIEW, "sms:".toUri())
-                        context.startActivity(fallback)
-                    }
+                launchSwipeAction(context, settings.swipeRightAction)
             },
             onSwipeUp = { currentScreen = LauncherScreen.Apps },
             onLongPress = { currentScreen = LauncherScreen.Settings }
@@ -184,7 +176,7 @@ private fun MinimalLauncherApp(
             hiddenPackages = prefs.hiddenPackages,
             settings = settings,
             onBackHome = { currentScreen = LauncherScreen.Home },
-            onSaveSettings = { region, interests, todo, tone, fontSize, homeTopPadding ->
+            onSaveSettings = { region, interests, todo, tone, fontSize, homeTopPadding, swipeLeftAction, swipeRightAction ->
                 scope.launch {
                     settingsRepository.updateRegion(region.ifBlank { "Seoul" })
                     settingsRepository.updateInterests(interests.ifBlank { "AI, IT" })
@@ -192,6 +184,8 @@ private fun MinimalLauncherApp(
                     settingsRepository.updateTextTone(tone)
                     settingsRepository.updateFontSize(fontSize)
                     settingsRepository.updateHomeTopPadding(homeTopPadding)
+                    settingsRepository.updateSwipeLeftAction(swipeLeftAction.ifBlank { "dial" })
+                    settingsRepository.updateSwipeRightAction(swipeRightAction.ifBlank { "messaging" })
                     currentScreen = LauncherScreen.Home
                 }
             },
@@ -349,6 +343,31 @@ private fun HomeScreen(
     }
 }
 
+private fun launchSwipeAction(context: android.content.Context, action: String) {
+    val normalized = action.trim()
+    when (normalized.lowercase()) {
+        "", "none", "off", "disabled" -> Unit
+        "dial", "phone", "call" -> {
+            runCatching { context.startActivity(Intent(Intent.ACTION_DIAL)) }
+        }
+        "messaging", "sms", "message" -> {
+            val smsIntent = Intent(Intent.ACTION_MAIN).apply {
+                addCategory(Intent.CATEGORY_APP_MESSAGING)
+            }
+            runCatching { context.startActivity(smsIntent) }
+                .onFailure {
+                    val fallback = Intent(Intent.ACTION_VIEW, "sms:".toUri())
+                    runCatching { context.startActivity(fallback) }
+                }
+        }
+        else -> {
+            val launchIntent = context.packageManager.getLaunchIntentForPackage(normalized)
+            if (launchIntent != null) {
+                runCatching { context.startActivity(launchIntent) }
+            }
+        }
+    }
+}
 
 // clock removed
 @Composable
@@ -449,7 +468,7 @@ private fun SettingsScreen(
     hiddenPackages: Set<String>,
     settings: WidgetSettings,
     onBackHome: () -> Unit,
-    onSaveSettings: (region: String, interests: String, todo: String, tone: String, fontSize: String, homeTopPadding: String) -> Unit,
+    onSaveSettings: (region: String, interests: String, todo: String, tone: String, fontSize: String, homeTopPadding: String, swipeLeftAction: String, swipeRightAction: String) -> Unit,
     onToggleHidden: (packageName: String, hidden: Boolean) -> Unit,
     onAliasChanged: (packageName: String, alias: String) -> Unit
 ) {
@@ -459,6 +478,8 @@ private fun SettingsScreen(
     var tone by remember { mutableStateOf(settings.textTone) }
     var fontSize by remember { mutableStateOf(settings.fontSize) }
     var homeTopPadding by remember { mutableStateOf(settings.homeTopPadding) }
+    var swipeLeftAction by remember { mutableStateOf(settings.swipeLeftAction) }
+    var swipeRightAction by remember { mutableStateOf(settings.swipeRightAction) }
 
     val aliasDrafts = remember { mutableStateMapOf<String, String>() }
     val settingsTextFieldColors = OutlinedTextFieldDefaults.colors(
@@ -534,10 +555,38 @@ private fun SettingsScreen(
             Text("위치: $homeTopPadding", color = Color.White, modifier = Modifier.align(Alignment.CenterVertically))
         }
 
+        CompositionLocalProvider(LocalTextSelectionColors provides whiteSelectionColors) {
+            OutlinedTextField(
+                value = swipeLeftAction,
+                onValueChange = { swipeLeftAction = it },
+                label = { Text("왼쪽 스와이프 액션 (dial/messaging/none/패키지명)") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                colors = settingsTextFieldColors
+            )
+            OutlinedTextField(
+                value = swipeRightAction,
+                onValueChange = { swipeRightAction = it },
+                label = { Text("오른쪽 스와이프 액션 (dial/messaging/none/패키지명)") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                colors = settingsTextFieldColors
+            )
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            MonoButton(label = "좌:전화") { swipeLeftAction = "dial" }
+            MonoButton(label = "우:문자") { swipeRightAction = "messaging" }
+            MonoButton(label = "양쪽 없음") {
+                swipeLeftAction = "none"
+                swipeRightAction = "none"
+            }
+        }
+
         MonoButton(
             label = "저장",
             modifier = Modifier.fillMaxWidth(),
-            onClick = { onSaveSettings(region, interests, todo, tone, fontSize, homeTopPadding) }
+            onClick = { onSaveSettings(region, interests, todo, tone, fontSize, homeTopPadding, swipeLeftAction, swipeRightAction) }
         )
 
         Text("앱 이름/숨김 설정", color = Color.White, fontWeight = FontWeight.SemiBold)

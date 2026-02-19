@@ -16,7 +16,9 @@ data class WidgetSettings(
     val region: String = "Daejeon",
     val interests: String = "AI, IT",
     val dailyTodo: String = "10 min walk",
-    val homeTopPadding: String = "mid"
+    val homeTopPadding: String = "mid",
+    val swipeLeftAction: String = "dial",
+    val swipeRightAction: String = "messaging"
 )
 
 object WidgetSettingKeys {
@@ -26,6 +28,8 @@ object WidgetSettingKeys {
     val Interests = stringPreferencesKey("interests")
     val DailyTodo = stringPreferencesKey("daily_todo")
     val HomeTopPadding = stringPreferencesKey("home_top_padding")
+    val SwipeLeftAction = stringPreferencesKey("swipe_left_action")
+    val SwipeRightAction = stringPreferencesKey("swipe_right_action")
 }
 
 class WidgetSettingsRepository(private val context: Context) {
@@ -56,6 +60,14 @@ class WidgetSettingsRepository(private val context: Context) {
     suspend fun updateHomeTopPadding(value: String) {
         context.settingsDataStore.edit { it[WidgetSettingKeys.HomeTopPadding] = value }
     }
+
+    suspend fun updateSwipeLeftAction(value: String) {
+        context.settingsDataStore.edit { it[WidgetSettingKeys.SwipeLeftAction] = value }
+    }
+
+    suspend fun updateSwipeRightAction(value: String) {
+        context.settingsDataStore.edit { it[WidgetSettingKeys.SwipeRightAction] = value }
+    }
 }
 
 fun Preferences.toWidgetSettings(): WidgetSettings {
@@ -65,6 +77,8 @@ fun Preferences.toWidgetSettings(): WidgetSettings {
         region = this[WidgetSettingKeys.Region] ?: "Daejeon",
         interests = this[WidgetSettingKeys.Interests] ?: "AI, IT",
         dailyTodo = this[WidgetSettingKeys.DailyTodo] ?: "10 min walk",
-        homeTopPadding = this[WidgetSettingKeys.HomeTopPadding] ?: "mid"
+        homeTopPadding = this[WidgetSettingKeys.HomeTopPadding] ?: "mid",
+        swipeLeftAction = this[WidgetSettingKeys.SwipeLeftAction] ?: "dial",
+        swipeRightAction = this[WidgetSettingKeys.SwipeRightAction] ?: "messaging"
     )
 }
