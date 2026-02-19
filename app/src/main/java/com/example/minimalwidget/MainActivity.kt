@@ -60,6 +60,9 @@ import com.example.minimalwidget.settings.WidgetSettingsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -88,6 +91,8 @@ class MainActivity : ComponentActivity() {
 
 private enum class LauncherScreen { Home, Apps, Settings }
 
+data class MarketQuote(val label: String, val value: String, val changePct: String)
+
 @Composable
 private fun MinimalLauncherApp(
     settingsRepository: WidgetSettingsRepository,
@@ -104,6 +109,8 @@ private fun MinimalLauncherApp(
     var newsItems by remember { mutableStateOf<List<String>>(emptyList()) }
     var newsLoading by remember { mutableStateOf(true) }
     var isNewsMode by remember { mutableStateOf(false) }
+    var marketQuotes by remember { mutableStateOf<List<MarketQuote>>(emptyList()) }
+    var marketLoading by remember { mutableStateOf(true) }
 
     val apps = remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
 
@@ -135,6 +142,14 @@ private fun MinimalLauncherApp(
         newsLoading = false
     }
 
+
+
+    LaunchedEffect(Unit) {
+        marketLoading = true
+        marketQuotes = fetchMarketQuotes()
+        marketLoading = false
+    }
+
     when (currentScreen) {
         LauncherScreen.Home -> HomeScreen(
             settings = settings,
@@ -142,6 +157,8 @@ private fun MinimalLauncherApp(
             weatherLoading = weatherLoading,
             newsItems = newsItems,
             newsLoading = newsLoading,
+            marketQuotes = marketQuotes,
+            marketLoading = marketLoading,
             isNewsMode = isNewsMode,
             onToggleNewsMode = { isNewsMode = !isNewsMode },
             onSwipeLeft = { launchSwipeAction(context, settings.swipeLeftAction) },
@@ -200,6 +217,8 @@ private fun HomeScreen(
     weatherLoading: Boolean,
     newsItems: List<String>,
     newsLoading: Boolean,
+    marketQuotes: List<MarketQuote>,
+    marketLoading: Boolean,
     isNewsMode: Boolean,
     onToggleNewsMode: () -> Unit,
     onSwipeLeft: () -> Unit,
@@ -262,19 +281,22 @@ private fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             if (isNewsMode) {
-                val marketLines = listOf(
-                    Triple("KOSPI", "2,845.10", "+0.73%"),
-                    Triple("NASDAQ", "18,920.44", "-0.41%"),
-                    Triple("USDKRW", "1,372.50", "+0.12%")
-                )
-                marketLines.forEach { (label, value, change) ->
+                val lines = if (marketLoading || marketQuotes.isEmpty()) {
+                    listOf(
+                        MarketQuote("KOSPI", "-", "0.00%"),
+                        MarketQuote("NASDAQ", "-", "0.00%"),
+                        MarketQuote("USDKRW", "-", "0.00%")
+                    )
+                } else marketQuotes
+
+                lines.forEach { line ->
                     Row {
-                        Text("$label $value ", color = textColor, fontSize = bodyFontSize)
+                        Text("${line.label} ${line.value} ", color = textColor, fontSize = bodyFontSize)
                         Text(
-                            change,
+                            line.changePct,
                             color = when {
-                                change.startsWith("+") -> Color(0xFFFF3B30)
-                                change.startsWith("-") -> Color(0xFF2F6BFF)
+                                line.changePct.startsWith("+") -> Color(0xFFFF3B30)
+                                line.changePct.startsWith("-") -> Color(0xFF2F6BFF)
                                 else -> textColor
                             },
                             fontSize = bodyFontSize
@@ -283,7 +305,7 @@ private fun HomeScreen(
                 }
             } else {
                 Text(
-                    text = if (weatherLoading) "--째C" else "${weather.temperatureCelsius}째C",
+                    text = if (weatherLoading) "--°C" else "${weather.temperatureCelsius}°C",
                     color = textColor,
                     fontSize = tempFontSize,
                     fontWeight = FontWeight.Bold
@@ -299,6 +321,51 @@ private fun HomeScreen(
     }
 }
 
+private suspend fun fetchMarketQuotes(): List<MarketQuote> = withContext(Dispatchers.IO) {
+    return@withContext try {
+        val url = URL("https://query1.finance.yahoo.com/v7/finance/quote?symbols=%5EKS11,%5EIXIC,KRW=X")
+        val conn = (url.openConnection() as HttpURLConnection).apply {
+            requestMethod = "GET"
+            connectTimeout = 7000
+            readTimeout = 7000
+        }
+
+        val body = conn.inputStream.bufferedReader().use { it.readText() }
+        conn.disconnect()
+
+        val results = JSONObject(body)
+            .getJSONObject("quoteResponse")
+            .getJSONArray("result")
+
+        val bySymbol = mutableMapOf<String, JSONObject>()
+        for (i in 0 until results.length()) {
+            val item = results.getJSONObject(i)
+            bySymbol[item.optString("symbol")] = item
+        }
+
+        fun formatLine(label: String, symbol: String): MarketQuote {
+            val obj = bySymbol[symbol]
+            if (obj == null) return MarketQuote(label, "-", "0.00%")
+            val price = obj.optDouble("regularMarketPrice", Double.NaN)
+            val pct = obj.optDouble("regularMarketChangePercent", Double.NaN)
+            val priceStr = if (price.isNaN()) "-" else String.format("%,.2f", price)
+            val pctStr = if (pct.isNaN()) "0.00%" else String.format("%+.2f%%", pct)
+            return MarketQuote(label, priceStr, pctStr)
+        }
+
+        listOf(
+            formatLine("KOSPI", "^KS11"),
+            formatLine("NASDAQ", "^IXIC"),
+            formatLine("USDKRW", "KRW=X")
+        )
+    } catch (_: Exception) {
+        listOf(
+            MarketQuote("KOSPI", "-", "0.00%"),
+            MarketQuote("NASDAQ", "-", "0.00%"),
+            MarketQuote("USDKRW", "-", "0.00%")
+        )
+    }
+}
 private fun launchSwipeAction(context: android.content.Context, action: String) {
     val normalized = action.trim().lowercase()
     when (normalized) {
@@ -493,4 +560,17 @@ private fun SettingsScreen(
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
