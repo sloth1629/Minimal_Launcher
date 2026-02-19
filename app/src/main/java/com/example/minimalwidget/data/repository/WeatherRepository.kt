@@ -21,14 +21,14 @@ class SeoulWeatherRepository : WeatherRepository {
             val pm10 = fetchPm10(lat, lon)
             WeatherInfo(
                 temperatureCelsius = temperature.roundToInt(),
-                airQualitySummary = "미세먼지 ${toAirQualityLabel(pm10)}"
+                airQualitySummary = "Air Quality: ${toAirQualityLabel(pm10)}"
             )
         }.getOrElse {
             runCatching { fetchWeatherFromWttr(region) }
                 .getOrElse {
                     WeatherInfo(
                         temperatureCelsius = 12,
-                        airQualitySummary = "날씨 정보를 불러오지 못했어요"
+                        airQualitySummary = "Air Quality: Unknown"
                     )
                 }
         }
@@ -73,7 +73,7 @@ class SeoulWeatherRepository : WeatherRepository {
             ?.optJSONObject(0)
             ?.optString("value")
             ?.takeIf { it.isNotBlank() }
-            ?: "날씨 정보"
+            ?: "Air Quality: Unknown"
 
         return WeatherInfo(
             temperatureCelsius = temp,
@@ -102,10 +102,10 @@ class SeoulWeatherRepository : WeatherRepository {
 
     private fun toAirQualityLabel(pm10: Double): String {
         return when {
-            pm10 <= 30.0 -> "좋음"
-            pm10 <= 80.0 -> "보통"
-            pm10 <= 150.0 -> "나쁨"
-            else -> "매우 나쁨"
+            pm10 <= 30.0 -> "Good"
+            pm10 <= 80.0 -> "Moderate"
+            pm10 <= 150.0 -> "Bad"
+            else -> "Very Bad"
         }
     }
 }
@@ -114,7 +114,7 @@ class MockWeatherRepository : WeatherRepository {
     override suspend fun getCurrentWeather(region: String): WeatherInfo {
         return WeatherInfo(
             temperatureCelsius = 12,
-            airQualitySummary = "미세먼지 좋음"
+            airQualitySummary = "Air Quality: Good"
         )
     }
 }
