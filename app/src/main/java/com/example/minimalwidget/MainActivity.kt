@@ -37,6 +37,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,6 +51,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.selection.LocalTextSelectionColors
+import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.minimalwidget.data.model.WeatherInfo
@@ -307,7 +310,7 @@ private fun HomeScreen(
                         text = "• $line",
                         color = textColor,
                         fontSize = bodyFontSize,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Medium,
                         letterSpacing = (-0.2).sp,
                         lineHeight = bodyLineHeight
                     )
@@ -324,7 +327,7 @@ private fun HomeScreen(
                     text = if (weatherLoading) "날씨 불러오는 중..." else weather.airQualitySummary,
                     color = textColor,
                     fontSize = bodyFontSize,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Medium,
                     letterSpacing = (-0.2).sp,
                     lineHeight = bodyLineHeight
                 )
@@ -332,7 +335,7 @@ private fun HomeScreen(
                     text = "오늘 할 일: ${settings.dailyTodo}",
                     color = textColor,
                     fontSize = bodyFontSize,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Medium,
                     letterSpacing = (-0.2).sp,
                     lineHeight = bodyLineHeight
                 )
@@ -462,6 +465,10 @@ private fun SettingsScreen(
         unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
         cursorColor = Color.White
     )
+    val whiteSelectionColors = TextSelectionColors(
+        handleColor = Color.White,
+        backgroundColor = Color.White.copy(alpha = 0.35f)
+    )
 
     Column(
         modifier = Modifier
@@ -475,30 +482,32 @@ private fun SettingsScreen(
             MonoButton(label = "취소", onClick = onBackHome)
         }
 
-        OutlinedTextField(
-            value = region,
-            onValueChange = { region = it },
-            label = { Text("지역") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-            modifier = Modifier.fillMaxWidth(),
-            colors = settingsTextFieldColors
-        )
-        OutlinedTextField(
-            value = interests,
-            onValueChange = { interests = it },
-            label = { Text("관심사") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-            modifier = Modifier.fillMaxWidth(),
-            colors = settingsTextFieldColors
-        )
-        OutlinedTextField(
-            value = todo,
-            onValueChange = { todo = it },
-            label = { Text("오늘 할 일") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-            modifier = Modifier.fillMaxWidth(),
-            colors = settingsTextFieldColors
-        )
+        CompositionLocalProvider(LocalTextSelectionColors provides whiteSelectionColors) {
+            OutlinedTextField(
+                value = region,
+                onValueChange = { region = it },
+                label = { Text("지역") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                modifier = Modifier.fillMaxWidth(),
+                colors = settingsTextFieldColors
+            )
+            OutlinedTextField(
+                value = interests,
+                onValueChange = { interests = it },
+                label = { Text("관심사") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                modifier = Modifier.fillMaxWidth(),
+                colors = settingsTextFieldColors
+            )
+            OutlinedTextField(
+                value = todo,
+                onValueChange = { todo = it },
+                label = { Text("오늘 할 일") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                modifier = Modifier.fillMaxWidth(),
+                colors = settingsTextFieldColors
+            )
+        }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             MonoButton(label = "라이트") { tone = "light" }
