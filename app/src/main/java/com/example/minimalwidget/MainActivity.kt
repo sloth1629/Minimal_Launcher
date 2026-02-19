@@ -108,7 +108,7 @@ private fun MinimalLauncherApp(
     var weatherLoading by remember { mutableStateOf(true) }
     var newsItems by remember { mutableStateOf<List<String>>(emptyList()) }
     var newsLoading by remember { mutableStateOf(true) }
-    var isNewsMode by remember { mutableStateOf(false) }
+    var isNewsMode by remember { mutableStateOf(true) }
     var marketQuotes by remember { mutableStateOf<List<MarketQuote>>(emptyList()) }
     var marketLoading by remember { mutableStateOf(true) }
 
@@ -315,7 +315,7 @@ private fun HomeScreen(
                     color = textColor,
                     fontSize = bodyFontSize
                 )
-                Text("Today: ${settings.dailyTodo}", color = textColor, fontSize = bodyFontSize)
+                Text("오늘 할 일: ${settings.dailyTodo}", color = textColor, fontSize = bodyFontSize)
             }
         }
     }
@@ -560,6 +560,7 @@ private fun SettingsScreen(
         }
     }
 }
+
 
 
 
