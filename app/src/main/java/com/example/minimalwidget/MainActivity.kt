@@ -29,6 +29,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -274,8 +275,9 @@ private fun HomeScreen(
     ) {
         val topPadding = when (settings.homeTopPadding) {
             "high" -> maxHeight / 9
+            "mid" -> maxHeight * 0.18f
             "low" -> maxHeight / 4
-            else -> maxHeight / 7
+            else -> maxHeight * 0.18f
         }
 
         Column(
@@ -448,6 +450,15 @@ private fun SettingsScreen(
     var homeTopPadding by remember { mutableStateOf(settings.homeTopPadding) }
 
     val aliasDrafts = remember { mutableStateMapOf<String, String>() }
+    val settingsTextFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = Color.White,
+        unfocusedTextColor = Color.White,
+        focusedLabelColor = Color.White,
+        unfocusedLabelColor = Color.White.copy(alpha = 0.8f),
+        focusedBorderColor = Color.White,
+        unfocusedBorderColor = Color.White.copy(alpha = 0.5f),
+        cursorColor = Color.White
+    )
 
     Column(
         modifier = Modifier
@@ -466,21 +477,24 @@ private fun SettingsScreen(
             onValueChange = { region = it },
             label = { Text("지역") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            colors = settingsTextFieldColors
         )
         OutlinedTextField(
             value = interests,
             onValueChange = { interests = it },
             label = { Text("관심사") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            colors = settingsTextFieldColors
         )
         OutlinedTextField(
             value = todo,
             onValueChange = { todo = it },
             label = { Text("오늘 할 일") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            colors = settingsTextFieldColors
         )
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -529,7 +543,8 @@ private fun SettingsScreen(
                         onValueChange = { aliasDrafts[pkg] = it },
                         label = { Text("런처 표시 이름") },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = settingsTextFieldColors
                     )
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
