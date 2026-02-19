@@ -209,6 +209,16 @@ private fun HomeScreen(
 
     val backgroundColor = if (settings.textTone == "dark") Color.Black else Color(0xFFF6F6F6)
     val textColor = if (settings.textTone == "dark") Color(0xFFF2F2F2) else Color(0xFF111111)
+    val tempFontSize = when (settings.fontSize) {
+        "small" -> 42.sp
+        "large" -> 58.sp
+        else -> 50.sp
+    }
+    val bodyFontSize = when (settings.fontSize) {
+        "small" -> 14.sp
+        "large" -> 18.sp
+        else -> 16.sp
+    }
 
     BoxWithConstraints(
         modifier = Modifier
@@ -240,7 +250,11 @@ private fun HomeScreen(
             )
             .padding(horizontal = 20.dp)
     ) {
-        val topPadding = maxHeight / 7
+        val topPadding = when (settings.homeTopPadding) {
+            "high" -> maxHeight / 9
+            "low" -> maxHeight / 4
+            else -> maxHeight / 7
+        }
 
         Column(
             modifier = Modifier
@@ -251,18 +265,18 @@ private fun HomeScreen(
             Text(
                 text = if (weatherLoading) "--°C" else "${weather.temperatureCelsius}°C",
                 color = textColor,
-                fontSize = 52.sp,
+                fontSize = tempFontSize,
                 fontWeight = FontWeight.Bold
             )
             Text(
                 text = if (weatherLoading) "날씨 불러오는 중..." else weather.airQualitySummary,
                 color = textColor,
-                fontSize = 16.sp
+                fontSize = bodyFontSize
             )
             Text(
                 text = "오늘 할 일: ${settings.dailyTodo}",
                 color = textColor,
-                fontSize = 16.sp
+                fontSize = bodyFontSize
             )
         }
     }
