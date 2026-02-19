@@ -227,14 +227,19 @@ private fun HomeScreen(
     val backgroundColor = if (settings.textTone == "dark") Color.Black else Color(0xFFF6F6F6)
     val textColor = if (settings.textTone == "dark") Color(0xFFF2F2F2) else Color(0xFF111111)
     val tempFontSize = when (settings.fontSize) {
-        "small" -> 42.sp
-        "large" -> 58.sp
-        else -> 50.sp
+        "small" -> 38.sp
+        "large" -> 52.sp
+        else -> 45.sp
     }
     val bodyFontSize = when (settings.fontSize) {
         "small" -> 14.sp
         "large" -> 18.sp
         else -> 16.sp
+    }
+    val bodyLineHeight = when (settings.fontSize) {
+        "small" -> 17.sp
+        "large" -> 22.sp
+        else -> 19.sp
     }
 
     BoxWithConstraints(
@@ -285,7 +290,8 @@ private fun HomeScreen(
                     color = textColor,
                     fontSize = bodyFontSize,
                     fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.2).sp
+                    letterSpacing = (-0.2).sp,
+                    lineHeight = bodyLineHeight
                 )
 
                 val lines = if (newsLoading) {
@@ -299,7 +305,8 @@ private fun HomeScreen(
                         text = "• $line",
                         color = textColor,
                         fontSize = bodyFontSize,
-                        letterSpacing = (-0.2).sp
+                        letterSpacing = (-0.2).sp,
+                        lineHeight = bodyLineHeight
                     )
                 }
             } else {
@@ -314,13 +321,15 @@ private fun HomeScreen(
                     text = if (weatherLoading) "날씨 불러오는 중..." else weather.airQualitySummary,
                     color = textColor,
                     fontSize = bodyFontSize,
-                    letterSpacing = (-0.2).sp
+                    letterSpacing = (-0.2).sp,
+                    lineHeight = bodyLineHeight
                 )
                 Text(
                     text = "오늘 할 일: ${settings.dailyTodo}",
                     color = textColor,
                     fontSize = bodyFontSize,
-                    letterSpacing = (-0.2).sp
+                    letterSpacing = (-0.2).sp,
+                    lineHeight = bodyLineHeight
                 )
             }
         }
