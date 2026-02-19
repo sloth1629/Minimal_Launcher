@@ -226,10 +226,15 @@ private fun HomeScreen(
 
     val backgroundColor = if (settings.textTone == "dark") Color.Black else Color(0xFFF6F6F6)
     val textColor = if (settings.textTone == "dark") Color(0xFFF2F2F2) else Color(0xFF111111)
-    val tempFontSize = when (settings.fontSize) {
-        "small" -> 35.sp
-        "large" -> 48.sp
-        else -> 42.sp
+    val tempValueFontSize = when (settings.fontSize) {
+        "small" -> 28.sp
+        "large" -> 36.sp
+        else -> 32.sp
+    }
+    val tempUnitFontSize = when (settings.fontSize) {
+        "small" -> 12.sp
+        "large" -> 15.sp
+        else -> 13.sp
     }
     val bodyFontSize = when (settings.fontSize) {
         "small" -> 14.sp
@@ -310,13 +315,25 @@ private fun HomeScreen(
                     )
                 }
             } else {
-                Text(
-                    text = if (weatherLoading) "--°C" else "${weather.temperatureCelsius}°C",
-                    color = textColor,
-                    fontSize = tempFontSize,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.8).sp
-                )
+                Row(
+                    verticalAlignment = Alignment.Bottom,
+                    horizontalArrangement = Arrangement.spacedBy(1.dp)
+                ) {
+                    Text(
+                        text = if (weatherLoading) "--" else "${weather.temperatureCelsius}",
+                        color = textColor,
+                        fontSize = tempValueFontSize,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.8).sp
+                    )
+                    Text(
+                        text = "°C",
+                        color = textColor,
+                        fontSize = tempUnitFontSize,
+                        letterSpacing = (-0.2).sp,
+                        modifier = Modifier.padding(bottom = 2.dp)
+                    )
+                }
                 Text(
                     text = if (weatherLoading) "날씨 불러오는 중..." else weather.airQualitySummary,
                     color = textColor,
