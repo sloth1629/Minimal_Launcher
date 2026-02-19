@@ -21,9 +21,9 @@ import androidx.glance.appwidget.updateAll
 import androidx.glance.color.ColorProvider
 import androidx.glance.currentState
 import androidx.glance.layout.Column
+import androidx.glance.layout.Row
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.padding
-import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
@@ -38,7 +38,7 @@ import kotlinx.coroutines.flow.first
 import java.util.concurrent.TimeUnit
 
 class MyWidget : GlanceAppWidget() {
-    override val stateDefinition = PreferencesGlanceStateDefinition
+    override val stateDefinition = androidx.glance.state.PreferencesGlanceStateDefinition
 
     override val sizeMode = SizeMode.Responsive(
         setOf(
@@ -51,7 +51,6 @@ class MyWidget : GlanceAppWidget() {
         val settings = WidgetSettingsRepository(context).settingsFlow.first()
         val weather = Repositories.weather.getCurrentWeather(settings.region)
         val todo = settings.dailyTodo.ifBlank { Repositories.todo.getDailyTodo() }
-        val newsItems = Repositories.news.getNewsSummaries(limit = 3, interests = settings.interests)
 
         provideContent {
             val prefs = currentState<Preferences>()
@@ -64,7 +63,7 @@ class MyWidget : GlanceAppWidget() {
                     .clickable(actionRunCallback<ToggleWidgetModeAction>())
             ) {
                 if (isNewsMode) {
-                    NewsModeContent(newsItems, settings.fontSize)
+                    MarketModeContent(settings.fontSize)
                 } else {
                     MinimalModeContent(weather, todo, settings.fontSize)
                 }
@@ -147,26 +146,50 @@ private fun MinimalModeContent(
     )
 }
 
-@androidx.compose.runtime.Composable
-private fun NewsModeContent(
-    newsItems: List<String>,
-    fontSize: String
-) {
-    val lines = newsItems.take(3)
-    val textColor = ColorProvider(day = Color(0xFFFFFFFF), night = Color(0xFFFFFFFF))
-    val line1 = lines.getOrElse(0) { "뉴스가 없어요" }
-    val line2 = lines.getOrElse(1) { "" }
-    val line3 = lines.getOrElse(2) { "" }
+data class MarketLine(
+    val label: String,
+    val value: String,
+    val changePercent: String
+)
 
-    Text(
-        text = "오늘의 뉴스",
-        style = TextStyle(
-            fontWeight = FontWeight.Bold,
-            color = textColor,
-            fontSize = bodySize(fontSize)
-        )
-    )
-    Text(text = "• $line1", style = TextStyle(color = textColor, fontSize = bodySize(fontSize), fontWeight = FontWeight.Medium))
-    if (line2.isNotBlank()) Text(text = "• $line2", style = TextStyle(color = textColor, fontSize = bodySize(fontSize), fontWeight = FontWeight.Medium))
-    if (line3.isNotBlank()) Text(text = "• $line3", style = TextStyle(color = textColor, fontSize = bodySize(fontSize), fontWeight = FontWeight.Medium))
+private fun marketLines(): List<MarketLine> = listOf(
+    MarketLine("KOSPI", "2,845.10", "+0.73%"),
+    MarketLine("NASDAQ", "18,920.44", "-0.41%"),
+    MarketLine("USDKRW", "1,372.50", "+0.12%")
+)
+
+@androidx.compose.runtime.Composable
+private fun MarketModeContent(fontSize: String) {
+    val lines = marketLines()
+    val base = ColorProvider(day = Color(0xFFFFFFFF), night = Color(0xFFFFFFFF))
+
+    lines.forEach { line ->
+        Row {
+            Text(
+                text = "${line.label} ${line.value} ",
+                style = TextStyle(
+                    color = base,
+                    fontSize = bodySize(fontSize),
+                    fontWeight = FontWeight.Medium
+                )
+            )
+            Text(
+                text = line.changePercent,
+                style = TextStyle(
+                    color = ColorProvider(changeColor(line.changePercent)),
+                    fontSize = bodySize(fontSize),
+                    fontWeight = FontWeight.Medium
+                )
+            )
+        }
+    }
+}
+
+private fun changeColor(change: String): Color {
+    val t = change.trim()
+    return when {
+        t.startsWith("+") -> Color(0xFFFF3B30) // KR: plus red
+        t.startsWith("-") -> Color(0xFF2F6BFF) // KR: minus blue
+        else -> Color(0xFFFFFFFF)
+    }
 }
