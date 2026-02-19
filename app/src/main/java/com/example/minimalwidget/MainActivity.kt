@@ -290,30 +290,35 @@ private fun HomeScreen(
             verticalArrangement = Arrangement.spacedBy(1.dp)
         ) {
             if (isNewsMode) {
-                Text(
-                    text = "뉴스",
-                    color = textColor,
-                    fontSize = bodyFontSize,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.2).sp,
-                    lineHeight = bodyLineHeight
+                val marketLines = listOf(
+                    Triple("KOSPI", "2,845.10", "+0.73%"),
+                    Triple("NASDAQ", "18,920.44", "-0.41%"),
+                    Triple("USDKRW", "1,372.50", "+0.12%")
                 )
 
-                val lines = if (newsLoading) {
-                    listOf("뉴스 불러오는 중...")
-                } else {
-                    newsItems.take(3).ifEmpty { listOf("뉴스가 없어요") }
-                }
-
-                lines.forEach { line ->
-                    Text(
-                        text = "• $line",
-                        color = textColor,
-                        fontSize = bodyFontSize,
-                        fontWeight = FontWeight.Normal,
-                        letterSpacing = (-0.2).sp,
-                        lineHeight = bodyLineHeight
-                    )
+                marketLines.forEach { (label, value, change) ->
+                    Row {
+                        Text(
+                            text = "$label $value ",
+                            color = textColor,
+                            fontSize = bodyFontSize,
+                            fontWeight = FontWeight.Normal,
+                            letterSpacing = (-0.2).sp,
+                            lineHeight = bodyLineHeight
+                        )
+                        Text(
+                            text = change,
+                            color = when {
+                                change.startsWith("+") -> Color(0xFFFF3B30)
+                                change.startsWith("-") -> Color(0xFF2F6BFF)
+                                else -> textColor
+                            },
+                            fontSize = bodyFontSize,
+                            fontWeight = FontWeight.Normal,
+                            letterSpacing = (-0.2).sp,
+                            lineHeight = bodyLineHeight
+                        )
+                    }
                 }
             } else {
                 Text(
