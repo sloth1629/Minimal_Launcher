@@ -227,9 +227,9 @@ private fun HomeScreen(
     val backgroundColor = if (settings.textTone == "dark") Color.Black else Color(0xFFF6F6F6)
     val textColor = if (settings.textTone == "dark") Color(0xFFF2F2F2) else Color(0xFF111111)
     val tempFontSize = when (settings.fontSize) {
-        "small" -> 38.sp
-        "large" -> 52.sp
-        else -> 45.sp
+        "small" -> 35.sp
+        "large" -> 48.sp
+        else -> 42.sp
     }
     val bodyFontSize = when (settings.fontSize) {
         "small" -> 14.sp
@@ -237,9 +237,9 @@ private fun HomeScreen(
         else -> 16.sp
     }
     val bodyLineHeight = when (settings.fontSize) {
-        "small" -> 17.sp
-        "large" -> 22.sp
-        else -> 19.sp
+        "small" -> 15.sp
+        "large" -> 19.sp
+        else -> 17.sp
     }
 
     BoxWithConstraints(
@@ -282,7 +282,7 @@ private fun HomeScreen(
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .padding(top = topPadding),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(1.dp)
         ) {
             if (isNewsMode) {
                 Text(
@@ -369,7 +369,7 @@ private fun AppsScreen(
                     }
                 )
             }
-            .padding(18.dp),
+            .padding(start = 18.dp, end = 18.dp, bottom = 18.dp, top = 36.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Row(modifier = Modifier.fillMaxWidth()) {
