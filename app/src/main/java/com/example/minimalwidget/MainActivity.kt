@@ -550,14 +550,16 @@ private fun SettingsScreen(
                     Text(originalName, color = Color.White, fontWeight = FontWeight.Medium)
                     Text(pkg, color = Color.White.copy(alpha = 0.5f), fontSize = 11.sp)
 
-                    OutlinedTextField(
-                        value = currentAlias,
-                        onValueChange = { aliasDrafts[pkg] = it },
-                        label = { Text("런처 표시 이름") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = settingsTextFieldColors
-                    )
+                    CompositionLocalProvider(LocalTextSelectionColors provides whiteSelectionColors) {
+                        OutlinedTextField(
+                            value = currentAlias,
+                            onValueChange = { aliasDrafts[pkg] = it },
+                            label = { Text("런처 표시 이름") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = settingsTextFieldColors
+                        )
+                    }
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         MonoButton(label = "이름 저장") { onAliasChanged(pkg, aliasDrafts[pkg] ?: "") }
