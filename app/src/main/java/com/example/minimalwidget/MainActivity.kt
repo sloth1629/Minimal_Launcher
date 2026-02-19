@@ -1,4 +1,4 @@
-package com.example.minimalwidget
+﻿package com.example.minimalwidget
 
 import android.content.Intent
 import android.os.Bundle
@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
@@ -96,7 +95,7 @@ private fun MinimalLauncherApp(
 ) {
     val context = LocalContext.current
     val settings by settingsRepository.settingsFlow.collectAsState(initial = WidgetSettings())
-    val prefs by launcherPrefsRepository.special.collectAsState(initial = com.example.minimalwidget.launcher.LauncherPrefs())
+    val prefs by launcherPrefsRepository.prefsFlow.collectAsState(initial = com.example.minimalwidget.launcher.LauncherPrefs())
     val scope = rememberCoroutineScope()
 
     var currentScreen by remember { mutableStateOf(LauncherScreen.Home) }
@@ -284,7 +283,7 @@ private fun HomeScreen(
                 }
             } else {
                 Text(
-                    text = if (weatherLoading) "--°C" else "${weather.temperatureCelsius}°C",
+                    text = if (weatherLoading) "--째C" else "${weather.temperatureCelsius}째C",
                     color = textColor,
                     fontSize = tempFontSize,
                     fontWeight = FontWeight.Bold
@@ -422,13 +421,13 @@ private fun SettingsScreen(
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            MonoButton(label = "App name / hidden", modifier = Modifier.weight(1f), onClick = { settingsTab = "apps" })
-            MonoButton(label = "Advanced", modifier = Modifier.weight(1f), onClick = { settingsTab = "advanced" })
+            MonoButton(label = "App name / hidden", modifier = Modifier, onClick = { settingsTab = "apps" })
+            MonoButton(label = "Advanced", modifier = Modifier, onClick = { settingsTab = "advanced" })
         }
 
         if (settingsTab == "apps") {
             Text("App name / hidden", color = Color.White, fontWeight = FontWeight.SemiBold)
-            LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyColumn(modifier = Modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(apps) { (pkg, originalName) ->
                     val currentAlias = aliasDrafts[pkg] ?: aliases[pkg].orEmpty()
                     Column(modifier = Modifier.fillMaxWidth().background(Color.White.copy(alpha = 0.03f)).padding(10.dp)) {
@@ -494,3 +493,4 @@ private fun SettingsScreen(
         }
     }
 }
+
