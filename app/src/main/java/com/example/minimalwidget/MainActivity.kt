@@ -50,7 +50,9 @@ import com.example.minimalwidget.data.repository.Repositories
 import com.example.minimalwidget.settings.WidgetSettings
 import com.example.minimalwidget.settings.WidgetSettingsRepository
 import com.example.minimalwidget.launcher.LauncherPrefsRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
@@ -91,15 +93,19 @@ private fun MinimalLauncherApp(
     var weather by remember { mutableStateOf(WeatherInfo(temperatureCelsius = 0, airQualitySummary = "날씨 불러오는 중")) }
     var weatherLoading by remember { mutableStateOf(true) }
 
-    val apps = remember {
-        context.packageManager.queryIntentActivities(
-            Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER),
-            0
-        ).map { info ->
-            val pkg = info.activityInfo.packageName
-            val appName = info.loadLabel(context.packageManager).toString()
-            pkg to appName
-        }.distinctBy { it.first }.sortedBy { it.second.lowercase() }
+    var apps by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
+
+    LaunchedEffect(Unit) {
+        apps = withContext(Dispatchers.Default) {
+            context.packageManager.queryIntentActivities(
+                Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER),
+                0
+            ).map { info ->
+                val pkg = info.activityInfo.packageName
+                val appName = info.loadLabel(context.packageManager).toString()
+                pkg to appName
+            }.distinctBy { it.first }.sortedBy { it.second.lowercase() }
+        }
     }
 
     LaunchedEffect(settings.region) {
@@ -273,19 +279,23 @@ private fun AppsScreen(
             Button(onClick = onBackHome) { Text("홈") }
         }
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(visibleApps) { (pkg, originalName) ->
-                val label = aliases[pkg].takeUnless { it.isNullOrBlank() } ?: originalName
-                Text(
-                    text = label,
-                    color = Color.White,
-                    fontSize = 18.sp,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onLaunchApp(pkg) }
-                        .padding(vertical = 6.dp)
-                )
-                Divider(color = Color.White.copy(alpha = 0.12f))
+        if (apps.isEmpty()) {
+            Text("앱 목록 불러오는 중...", color = Color.White.copy(alpha = 0.7f))
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(visibleApps) { (pkg, originalName) ->
+                    val label = aliases[pkg].takeUnless { it.isNullOrBlank() } ?: originalName
+                    Text(
+                        text = label,
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onLaunchApp(pkg) }
+                            .padding(vertical = 6.dp)
+                    )
+                    Divider(color = Color.White.copy(alpha = 0.12f))
+                }
             }
         }
     }
