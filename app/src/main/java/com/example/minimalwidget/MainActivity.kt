@@ -266,17 +266,20 @@ private fun HomeScreen(
                 text = if (weatherLoading) "--°C" else "${weather.temperatureCelsius}°C",
                 color = textColor,
                 fontSize = tempFontSize,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                letterSpacing = (-0.8).sp
             )
             Text(
                 text = if (weatherLoading) "날씨 불러오는 중..." else weather.airQualitySummary,
                 color = textColor,
-                fontSize = bodyFontSize
+                fontSize = bodyFontSize,
+                letterSpacing = (-0.2).sp
             )
             Text(
                 text = "오늘 할 일: ${settings.dailyTodo}",
                 color = textColor,
-                fontSize = bodyFontSize
+                fontSize = bodyFontSize,
+                letterSpacing = (-0.2).sp
             )
         }
     }
