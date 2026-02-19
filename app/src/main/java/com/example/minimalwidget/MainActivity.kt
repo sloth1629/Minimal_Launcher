@@ -9,6 +9,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -42,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -389,25 +391,27 @@ private fun AppsScreen(
     onLaunchApp: (String) -> Unit
 ) {
     val visibleApps = apps.filterNot { hiddenPackages.contains(it.first) }
-    var totalDx by remember { mutableFloatStateOf(0f) }
-    var totalDy by remember { mutableFloatStateOf(0f) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
             .pointerInput(Unit) {
-                detectDragGestures(
-                    onDrag = { _, dragAmount ->
-                        totalDx += dragAmount.x
-                        totalDy += dragAmount.y
-                    },
-                    onDragEnd = {
-                        if (kotlin.math.abs(totalDy) > kotlin.math.abs(totalDx) && totalDy > 90f) onBackHome()
-                        totalDx = 0f
-                        totalDy = 0f
+                awaitEachGesture {
+                    val down = awaitPointerEvent(pass = PointerEventPass.Initial).changes.firstOrNull()?.position
+                    var last = down
+                    while (true) {
+                        val event = awaitPointerEvent(pass = PointerEventPass.Initial)
+                        val change = event.changes.firstOrNull()
+                        if (change != null) last = change.position
+                        if (event.changes.none { it.pressed }) break
                     }
-                )
+                    if (down != null && last != null) {
+                        val dx = last.x - down.x
+                        val dy = last.y - down.y
+                        if (kotlin.math.abs(dy) > kotlin.math.abs(dx) && dy > 120f) onBackHome()
+                    }
+                }
             }
             .padding(20.dp)
     ) {
@@ -415,20 +419,7 @@ private fun AppsScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 12.dp)
-                .pointerInput(Unit) {
-                    detectDragGestures(
-                        onDrag = { _, dragAmount ->
-                            totalDx += dragAmount.x
-                            totalDy += dragAmount.y
-                        },
-                        onDragEnd = {
-                            if (kotlin.math.abs(totalDy) > kotlin.math.abs(totalDx) && totalDy > 90f) onBackHome()
-                            totalDx = 0f
-                            totalDy = 0f
-                        }
-                    )
-                },
+                .padding(top = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(visibleApps) { (pkg, originalName) ->
