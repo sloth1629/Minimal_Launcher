@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
@@ -82,7 +83,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MaterialTheme {
-                Surface(modifier = Modifier.fillMaxSize()) {
+                Surface(modifier = Modifier.fillMaxSize(), color = Color.Black) {
                     MinimalLauncherApp(settingsRepository, launcherPrefsRepository)
                 }
             }
@@ -90,21 +91,17 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class LauncherScreen {
-    Home,
-    Apps,
-    Settings
-}
+private enum class LauncherScreen { Home, Apps, Settings }
 
 @Composable
 private fun MinimalLauncherApp(
     settingsRepository: WidgetSettingsRepository,
     launcherPrefsRepository: LauncherPrefsRepository
 ) {
-    val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val settings by settingsRepository.settingsFlow.collectAsState(initial = WidgetSettings())
-    val prefs by launcherPrefsRepository.prefsFlow.collectAsState(initial = com.example.minimalwidget.launcher.LauncherPrefs())
+    val prefs by launcherPrefsRepository.special.collectAsState(initial = com.example.minimalwidget.launcher.LauncherPrefs())
+    val scope = rememberCoroutineScope()
 
     var currentScreen by remember { mutableStateOf(LauncherScreen.Home) }
     var weather by remember { mutableStateOf(WeatherInfo(temperatureCelsius = 0, airQualitySummary = "날씨 불러오는 중")) }
@@ -113,18 +110,25 @@ private fun MinimalLauncherApp(
     var newsLoading by remember { mutableStateOf(true) }
     var isNewsMode by remember { mutableStateOf(false) }
 
-    var apps by remember { mutableStateOf<List<Pair<String, String>>>(emptyList()) }
+    val apps = remember {
+        mutableStateOf<List<Pair<String, String>>>(emptyList())
+    }
 
     LaunchedEffect(Unit) {
-        apps = withContext(Dispatchers.Default) {
-            context.packageManager.queryIntentActivities(
-                Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER),
-                0
-            ).map { info ->
-                val pkg = info.activityInfo.packageName
-                val appName = info.loadLabel(context.packageManager).toString()
-                pkg to appName
-            }.distinctBy { it.first }.sortedBy { it.second.lowercase() }
+        withContext(Dispatchers.IO) {
+            val pm = context.packageManager
+            val launchIntent = Intent(Intent.ACTION_MAIN, null).apply {
+                addCategory(Intent.CATEGORY_LAUNCHER)
+            }
+            val loaded = pm.queryIntentActivities(launchIntent, 0)
+                .map {
+                    val pkg = it.activityInfo.packageName
+                    val label = it.loadLabel(pm).toString()
+                    pkg to label
+                }
+                .distinctBy { it.first }
+                .sortedBy { it.second.lowercase() }
+            apps.value = loaded
         }
     }
 
@@ -160,7 +164,7 @@ private fun MinimalLauncherApp(
         )
 
         LauncherScreen.Apps -> AppsScreen(
-            apps = apps,
+            apps = apps.value,
             aliases = prefs.aliases,
             hiddenPackages = prefs.hiddenPackages,
             onBackHome = { currentScreen = LauncherScreen.Home },
@@ -171,7 +175,7 @@ private fun MinimalLauncherApp(
         )
 
         LauncherScreen.Settings -> SettingsScreen(
-            apps = apps,
+            apps = apps.value,
             aliases = prefs.aliases,
             hiddenPackages = prefs.hiddenPackages,
             settings = settings,
@@ -225,9 +229,9 @@ private fun HomeScreen(
     val backgroundColor = if (settings.textTone == "dark") Color.Black else Color(0xFFF6F6F6)
     val textColor = if (settings.textTone == "dark") Color(0xFFF2F2F2) else Color(0xFF111111)
     val tempFontSize = when (settings.fontSize) {
-        "small" -> 24.sp
-        "large" -> 32.sp
-        else -> 28.sp
+        "small" -> 40.sp
+        "large" -> 56.sp
+        else -> 48.sp
     }
     val bodyFontSize = when (settings.fontSize) {
         "small" -> 14.sp
@@ -401,46 +405,26 @@ private fun AppsScreen(
                     }
                 )
             }
-            .padding(start = 18.dp, end = 18.dp, bottom = 18.dp, top = 36.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+            .padding(20.dp)
     ) {
-        Row(modifier = Modifier.fillMaxWidth()) {
-            Text("Apps", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        }
-
-        if (apps.isEmpty()) {
-            Text("앱 목록 불러오는 중...", color = Color.White.copy(alpha = 0.7f))
-        } else {
-            LazyColumn(
-                modifier = Modifier.pointerInput(Unit) {
-                    detectDragGestures(
-                        onDrag = { _, dragAmount ->
-                            totalDx += dragAmount.x
-                            totalDy += dragAmount.y
-                        },
-                        onDragEnd = {
-                            if (kotlin.math.abs(totalDy) > kotlin.math.abs(totalDx) && totalDy > 120f) {
-                                onBackHome()
-                            }
-                            totalDx = 0f
-                            totalDy = 0f
-                        }
-                    )
-                },
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(visibleApps) { (pkg, originalName) ->
-                    val label = aliases[pkg].takeUnless { it.isNullOrBlank() } ?: originalName
-                    Text(
-                        text = label,
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onLaunchApp(pkg) }
-                            .padding(vertical = 8.dp)
-                    )
-                }
+        Text("Apps", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(visibleApps) { (pkg, originalName) ->
+                val label = aliases[pkg].takeUnless { it.isNullOrBlank() } ?: originalName
+                Text(
+                    text = label,
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onLaunchApp(pkg) }
+                        .padding(vertical = 8.dp)
+                )
             }
         }
     }
@@ -480,6 +464,7 @@ private fun SettingsScreen(
     var homeTopPadding by remember { mutableStateOf(settings.homeTopPadding) }
     var swipeLeftAction by remember { mutableStateOf(settings.swipeLeftAction) }
     var swipeRightAction by remember { mutableStateOf(settings.swipeRightAction) }
+    var settingsTab by remember { mutableStateOf("apps") } // apps | advanced
 
     val aliasDrafts = remember { mutableStateMapOf<String, String>() }
     val settingsTextFieldColors = OutlinedTextFieldDefaults.colors(
@@ -508,123 +493,141 @@ private fun SettingsScreen(
             MonoButton(label = "취소", onClick = onBackHome)
         }
 
-        CompositionLocalProvider(LocalTextSelectionColors provides whiteSelectionColors) {
-            OutlinedTextField(
-                value = region,
-                onValueChange = { region = it },
-                label = { Text("지역") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                modifier = Modifier.fillMaxWidth(),
-                colors = settingsTextFieldColors
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            MonoButton(
+                label = "앱 이름/숨김 설정",
+                modifier = Modifier.weight(1f),
+                onClick = { settingsTab = "apps" }
             )
-            OutlinedTextField(
-                value = interests,
-                onValueChange = { interests = it },
-                label = { Text("관심사") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                modifier = Modifier.fillMaxWidth(),
-                colors = settingsTextFieldColors
-            )
-            OutlinedTextField(
-                value = todo,
-                onValueChange = { todo = it },
-                label = { Text("오늘 할 일") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-                modifier = Modifier.fillMaxWidth(),
-                colors = settingsTextFieldColors
+            MonoButton(
+                label = "고급 설정",
+                modifier = Modifier.weight(1f),
+                onClick = { settingsTab = "advanced" }
             )
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MonoButton(label = "라이트") { tone = "light" }
-            MonoButton(label = "다크") { tone = "dark" }
-            Text("현재: $tone", color = Color.White, modifier = Modifier.align(Alignment.CenterVertically))
-        }
+        if (settingsTab == "apps") {
+            Text("앱 이름/숨김 설정", color = Color.White, fontWeight = FontWeight.SemiBold)
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MonoButton(label = "작게") { fontSize = "small" }
-            MonoButton(label = "보통") { fontSize = "medium" }
-            MonoButton(label = "크게") { fontSize = "large" }
-            Text("현재: $fontSize", color = Color.White, modifier = Modifier.align(Alignment.CenterVertically))
-        }
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(apps) { (pkg, originalName) ->
+                    val currentAlias = aliasDrafts[pkg] ?: aliases[pkg].orEmpty()
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MonoButton(label = "위로") { homeTopPadding = "high" }
-            MonoButton(label = "중간") { homeTopPadding = "mid" }
-            MonoButton(label = "아래") { homeTopPadding = "low" }
-            Text("위치: $homeTopPadding", color = Color.White, modifier = Modifier.align(Alignment.CenterVertically))
-        }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White.copy(alpha = 0.03f))
+                            .padding(10.dp)
+                    ) {
+                        Text(originalName, color = Color.White, fontWeight = FontWeight.Medium)
+                        Text(pkg, color = Color.White.copy(alpha = 0.5f), fontSize = 11.sp)
 
-        CompositionLocalProvider(LocalTextSelectionColors provides whiteSelectionColors) {
-            OutlinedTextField(
-                value = swipeLeftAction,
-                onValueChange = { swipeLeftAction = it },
-                label = { Text("왼쪽 스와이프 액션 (dial/messaging/none/패키지명)") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                colors = settingsTextFieldColors
-            )
-            OutlinedTextField(
-                value = swipeRightAction,
-                onValueChange = { swipeRightAction = it },
-                label = { Text("오른쪽 스와이프 액션 (dial/messaging/none/패키지명)") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                colors = settingsTextFieldColors
-            )
-        }
+                        CompositionLocalProvider(LocalTextSelectionColors provides whiteSelectionColors) {
+                            OutlinedTextField(
+                                value = currentAlias,
+                                onValueChange = { aliasDrafts[pkg] = it },
+                                label = { Text("런처 표시 이름") },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = settingsTextFieldColors
+                            )
+                        }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MonoButton(label = "좌:전화") { swipeLeftAction = "dial" }
-            MonoButton(label = "우:문자") { swipeRightAction = "messaging" }
-            MonoButton(label = "양쪽 없음") {
-                swipeLeftAction = "none"
-                swipeRightAction = "none"
-            }
-        }
-
-        MonoButton(
-            label = "저장",
-            modifier = Modifier.fillMaxWidth(),
-            onClick = { onSaveSettings(region, interests, todo, tone, fontSize, homeTopPadding, swipeLeftAction, swipeRightAction) }
-        )
-
-        Text("앱 이름/숨김 설정", color = Color.White, fontWeight = FontWeight.SemiBold)
-
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(apps) { (pkg, originalName) ->
-                val currentAlias = aliasDrafts[pkg] ?: aliases[pkg].orEmpty()
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.White.copy(alpha = 0.03f))
-                        .padding(10.dp)
-                ) {
-                    Text(originalName, color = Color.White, fontWeight = FontWeight.Medium)
-                    Text(pkg, color = Color.White.copy(alpha = 0.5f), fontSize = 11.sp)
-
-                    CompositionLocalProvider(LocalTextSelectionColors provides whiteSelectionColors) {
-                        OutlinedTextField(
-                            value = currentAlias,
-                            onValueChange = { aliasDrafts[pkg] = it },
-                            label = { Text("런처 표시 이름") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = settingsTextFieldColors
-                        )
-                    }
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        MonoButton(label = "이름 저장") { onAliasChanged(pkg, aliasDrafts[pkg] ?: "") }
-                        if (hiddenPackages.contains(pkg)) {
-                            MonoButton(label = "숨김 해제") { onToggleHidden(pkg, false) }
-                        } else {
-                            MonoButton(label = "숨기기") { onToggleHidden(pkg, true) }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            MonoButton(label = "이름 저장") { onAliasChanged(pkg, aliasDrafts[pkg] ?: "") }
+                            if (hiddenPackages.contains(pkg)) {
+                                MonoButton(label = "숨김 해제") { onToggleHidden(pkg, false) }
+                            } else {
+                                MonoButton(label = "숨기기") { onToggleHidden(pkg, true) }
+                            }
                         }
                     }
                 }
             }
+        } else {
+            CompositionLocalProvider(LocalTextSelectionColors provides whiteSelectionColors) {
+                OutlinedTextField(
+                    value = region,
+                    onValueChange = { region = it },
+                    label = { Text("지역") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = settingsTextFieldColors
+                )
+                OutlinedTextField(
+                    value = interests,
+                    onValueChange = { interests = it },
+                    label = { Text("관심사") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = settingsTextFieldColors
+                )
+                OutlinedTextField(
+                    value = todo,
+                    onValueChange = { todo = it },
+                    label = { Text("오늘 할 일") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = settingsTextFieldColors
+                )
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MonoButton(label = "라이트") { tone = "light" }
+                MonoButton(label = "다크") { tone = "dark" }
+                Text("현재: $tone", color = Color.White, modifier = Modifier.align(Alignment.CenterVertically))
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MonoButton(label = "작게") { fontSize = "small" }
+                MonoButton(label = "보통") { fontSize = "medium" }
+                MonoButton(label = "크게") { fontSize = "large" }
+                Text("현재: $fontSize", color = Color.White, modifier = Modifier.align(Alignment.CenterVertically))
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MonoButton(label = "위로") { homeTopPadding = "high" }
+                MonoButton(label = "중간") { homeTopPadding = "mid" }
+                MonoButton(label = "아래") { homeTopPadding = "low" }
+                Text("위치: $homeTopPadding", color = Color.White, modifier = Modifier.align(Alignment.CenterVertically))
+            }
+
+            CompositionLocalProvider(LocalTextSelectionColors provides whiteSelectionColors) {
+                OutlinedTextField(
+                    value = swipeLeftAction,
+                    onValueChange = { swipeLeftAction = it },
+                    label = { Text("왼쪽 스와이프 액션 (dial/messaging/none/패키지명)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = settingsTextFieldColors
+                )
+                OutlinedTextField(
+                    value = swipeRightAction,
+                    onValueChange = { swipeRightAction = it },
+                    label = { Text("오른쪽 스와이프 액션 (dial/messaging/none/패키지명)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = settingsTextFieldColors
+                )
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MonoButton(label = "좌:전화") { swipeLeftAction = "dial" }
+                MonoButton(label = "우:문자") { swipeRightAction = "messaging" }
+                MonoButton(label = "양쪽 없음") {
+                    swipeLeftAction = "none"
+                    swipeRightAction = "none"
+                }
+            }
+
+            MonoButton(
+                label = "저장",
+                modifier = Modifier.fillMaxWidth(),
+                onClick = { onSaveSettings(region, interests, todo, tone, fontSize, homeTopPadding, swipeLeftAction, swipeRightAction) }
+            )
         }
     }
 }
