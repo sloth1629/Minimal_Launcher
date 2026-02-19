@@ -56,16 +56,18 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.core.net.toUri
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        WindowInsetsControllerCompat(window, window.decorView).hide(WindowInsetsCompat.Type.statusBars())
+        window.statusBarColor = android.graphics.Color.BLACK
+        window.navigationBarColor = android.graphics.Color.BLACK
+        WindowInsetsControllerCompat(window, window.decorView).apply {
+            hide(WindowInsetsCompat.Type.systemBars())
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
 
         val settingsRepository = WidgetSettingsRepository(this)
         val launcherPrefsRepository = LauncherPrefsRepository(this)
@@ -161,13 +163,14 @@ private fun MinimalLauncherApp(
             hiddenPackages = prefs.hiddenPackages,
             settings = settings,
             onBackHome = { currentScreen = LauncherScreen.Home },
-            onSaveSettings = { region, interests, todo, tone, fontSize ->
+            onSaveSettings = { region, interests, todo, tone, fontSize, homeTopPadding ->
                 scope.launch {
                     settingsRepository.updateRegion(region.ifBlank { "Seoul" })
                     settingsRepository.updateInterests(interests.ifBlank { "technology" })
                     settingsRepository.updateDailyTodo(todo.ifBlank { "오늘 할 일을 입력해 주세요" })
                     settingsRepository.updateTextTone(tone)
                     settingsRepository.updateFontSize(fontSize)
+                    settingsRepository.updateHomeTopPadding(homeTopPadding)
                     currentScreen = LauncherScreen.Home
                 }
             },
@@ -200,8 +203,13 @@ private fun HomeScreen(
     var totalDx by remember { mutableFloatStateOf(0f) }
     var totalDy by remember { mutableFloatStateOf(0f) }
 
-    val backgroundColor = if (settings.textTone == "dark") Color(0xFF0B0B0B) else Color(0xFFF6F6F6)
+    val backgroundColor = if (settings.textTone == "dark") Color.Black else Color(0xFFF6F6F6)
     val textColor = if (settings.textTone == "dark") Color(0xFFF2F2F2) else Color(0xFF111111)
+    val topPadding = when (settings.homeTopPadding) {
+        "high" -> 18.dp
+        "low" -> 64.dp
+        else -> 36.dp
+    }
 
     Box(
         modifier = Modifier
@@ -231,18 +239,12 @@ private fun HomeScreen(
                 onClick = {},
                 onLongClick = onLongPress
             )
-            .padding(horizontal = 20.dp, vertical = 28.dp)
+            .padding(horizontal = 20.dp, vertical = topPadding)
     ) {
         Column(
             modifier = Modifier.align(Alignment.TopStart),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text(
-                text = rememberCurrentTimeText(),
-                color = textColor,
-                fontSize = 40.sp,
-                fontWeight = FontWeight.Bold
-            )
             Text(
                 text = if (weatherLoading) "날씨 불러오는 중..." else "${weather.temperatureCelsius}°C · ${weather.airQualitySummary}",
                 color = textColor,
@@ -255,34 +257,12 @@ private fun HomeScreen(
             )
         }
 
-        Text(
-            text = "← 전화  |  메시지 →\n위로 스와이프: 앱 목록\n길게 누르기: 설정",
-            color = textColor.copy(alpha = 0.65f),
-            fontSize = 12.sp,
-            modifier = Modifier.align(Alignment.BottomStart)
-        )
+        // 안내 문구 제거
     }
 }
 
 
-@Composable
-private fun rememberCurrentTimeText(): String {
-    var currentTime by remember { mutableStateOf(formatCurrentTime()) }
-
-    LaunchedEffect(Unit) {
-        while (true) {
-            val now = System.currentTimeMillis()
-            val delayMs = 60_000L - (now % 60_000L)
-            kotlinx.coroutines.delay(delayMs)
-            currentTime = formatCurrentTime()
-        }
-    }
-
-    return currentTime
-}
-
-private fun formatCurrentTime(): String =
-    SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+// clock removed
 @Composable
 private fun AppsScreen(
     apps: List<Pair<String, String>>,
@@ -292,6 +272,8 @@ private fun AppsScreen(
     onLaunchApp: (String) -> Unit
 ) {
     val visibleApps = apps.filterNot { hiddenPackages.contains(it.first) }
+    var totalDx by remember { mutableFloatStateOf(0f) }
+    var totalDy by remember { mutableFloatStateOf(0f) }
 
     Column(
         modifier = Modifier
@@ -308,7 +290,24 @@ private fun AppsScreen(
         if (apps.isEmpty()) {
             Text("앱 목록 불러오는 중...", color = Color.White.copy(alpha = 0.7f))
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            LazyColumn(
+                modifier = Modifier.pointerInput(Unit) {
+                    detectDragGestures(
+                        onDrag = { _, dragAmount ->
+                            totalDx += dragAmount.x
+                            totalDy += dragAmount.y
+                        },
+                        onDragEnd = {
+                            if (kotlin.math.abs(totalDy) > kotlin.math.abs(totalDx) && totalDy > 120f) {
+                                onBackHome()
+                            }
+                            totalDx = 0f
+                            totalDy = 0f
+                        }
+                    )
+                },
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 items(visibleApps) { (pkg, originalName) ->
                     val label = aliases[pkg].takeUnless { it.isNullOrBlank() } ?: originalName
                     Text(
@@ -334,7 +333,7 @@ private fun SettingsScreen(
     hiddenPackages: Set<String>,
     settings: WidgetSettings,
     onBackHome: () -> Unit,
-    onSaveSettings: (region: String, interests: String, todo: String, tone: String, fontSize: String) -> Unit,
+    onSaveSettings: (region: String, interests: String, todo: String, tone: String, fontSize: String, homeTopPadding: String) -> Unit,
     onToggleHidden: (packageName: String, hidden: Boolean) -> Unit,
     onAliasChanged: (packageName: String, alias: String) -> Unit
 ) {
@@ -343,6 +342,7 @@ private fun SettingsScreen(
     var todo by remember { mutableStateOf(settings.dailyTodo) }
     var tone by remember { mutableStateOf(settings.textTone) }
     var fontSize by remember { mutableStateOf(settings.fontSize) }
+    var homeTopPadding by remember { mutableStateOf(settings.homeTopPadding) }
 
     val aliasDrafts = remember { mutableStateMapOf<String, String>() }
 
@@ -393,8 +393,15 @@ private fun SettingsScreen(
             Text("현재: $fontSize", color = Color.White, modifier = Modifier.align(Alignment.CenterVertically))
         }
 
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = { homeTopPadding = "high" }) { Text("위로") }
+            Button(onClick = { homeTopPadding = "mid" }) { Text("중간") }
+            Button(onClick = { homeTopPadding = "low" }) { Text("아래") }
+            Text("위치: $homeTopPadding", color = Color.White, modifier = Modifier.align(Alignment.CenterVertically))
+        }
+
         Button(
-            onClick = { onSaveSettings(region, interests, todo, tone, fontSize) },
+            onClick = { onSaveSettings(region, interests, todo, tone, fontSize, homeTopPadding) },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("저장")

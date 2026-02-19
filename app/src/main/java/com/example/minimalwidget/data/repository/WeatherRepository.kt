@@ -15,7 +15,7 @@ interface WeatherRepository {
 
 class SeoulWeatherRepository : WeatherRepository {
     override suspend fun getCurrentWeather(region: String): WeatherInfo = withContext(Dispatchers.IO) {
-        try {
+        runCatching {
             val (lat, lon) = coordinates(region)
             val temperature = fetchTemperatureCelsius(lat, lon)
             val pm10 = fetchPm10(lat, lon)
@@ -23,11 +23,14 @@ class SeoulWeatherRepository : WeatherRepository {
                 temperatureCelsius = temperature.roundToInt(),
                 airQualitySummary = "미세먼지 ${toAirQualityLabel(pm10)}"
             )
-        } catch (_: Exception) {
-            WeatherInfo(
-                temperatureCelsius = 12,
-                airQualitySummary = "미세먼지 정보 없음"
-            )
+        }.getOrElse {
+            runCatching { fetchWeatherFromWttr(region) }
+                .getOrElse {
+                    WeatherInfo(
+                        temperatureCelsius = 12,
+                        airQualitySummary = "날씨 정보를 불러오지 못했어요"
+                    )
+                }
         }
     }
 
@@ -57,7 +60,25 @@ class SeoulWeatherRepository : WeatherRepository {
                 "?latitude=$lat&longitude=$lon" +
                 "&current=pm10&timezone=Asia%2FSeoul"
         )
-        return json.getJSONObject("current").getDouble("pm10")
+        val current = json.getJSONObject("current")
+        return current.optDouble("pm10", 35.0)
+    }
+
+    private fun fetchWeatherFromWttr(region: String): WeatherInfo {
+        val encodedRegion = java.net.URLEncoder.encode(region, Charsets.UTF_8.name())
+        val json = requestJson("https://wttr.in/$encodedRegion?format=j1")
+        val current = json.getJSONArray("current_condition").getJSONObject(0)
+        val temp = current.optString("temp_C", "12").toIntOrNull() ?: 12
+        val desc = current.optJSONArray("weatherDesc")
+            ?.optJSONObject(0)
+            ?.optString("value")
+            ?.takeIf { it.isNotBlank() }
+            ?: "날씨 정보"
+
+        return WeatherInfo(
+            temperatureCelsius = temp,
+            airQualitySummary = desc
+        )
     }
 
     private fun requestJson(url: String): JSONObject {
